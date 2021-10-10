@@ -7,6 +7,6 @@ module Common =
       exc.ToString() |> logger
       failwith exc.Message
 
-  let DUName (x:'a) =
+  let internal DUName (x:'a) =
     match Microsoft.FSharp.Reflection.FSharpValue.GetUnionFields(x, typeof<'a>) with
     | case, _ -> case.Name

@@ -7,14 +7,19 @@ type Timed<'E> = {
   at: DateTime
 }
 
+type Logger = string -> unit
+
 type CommandResult<'E> =
   | Success of 'E seq
   | Failure of string
+  | Pass
 with 
   member this.append (res2:CommandResult<'E>) =
     match this, res2 with 
     | Failure _, _ -> this
     | _ , Failure _ -> res2
+    | Pass, _ -> res2
+    | _, Pass -> this
     | Success x, Success y -> Seq.append x y |> Success
 
 type EventSource = 
@@ -36,25 +41,32 @@ module Projection =
 
 module Commands = 
   open Projection 
-  
-  let processCommandFromSource<'S, 'C, 'E> 
+
+  let applyCommand<'S, 'C, 'E> 
       (utcNow: DateProvider)
-      (logger: string -> unit)
-      (commandProcessor: CommandProcessor<'S, 'C, 'E>)
-      (projector: Projector<'S, Timed<'E>>) 
+      (logger: Logger)
+      (processor: CommandProcessor<'S, 'C, 'E>)
+      (initialState: 'S)
+      (cmd: 'C) 
+      : CommandResult<'E> =
+    try
+      processor initialState cmd
+    with 
+    | exc -> exc.ToString() |> Failure
+
+  let applyCommandToEventSource<'S, 'C, 'E> 
+      (utcNow: DateProvider)
+      (logger: Logger)
+      (processor: CommandProcessor<'S, 'C, 'E>)
       (initialState: 'S)
       (src:EventSource) 
       (cmd: 'C)=
-    let state = projectFromSource initialState projector src
     cmd 
-    |> 
-      try
-        commandProcessor state
-      with 
-      | exc -> exc |> fail logger
+    |> applyCommand utcNow logger processor initialState
     |> function 
         | Success result -> 
             result
             |> Seq.map (fun x -> {event=x; at=utcNow() })
             |> src.append "sportsball" 
+        | Pass -> src
         | Failure msg -> msg |> System.Exception |> fail logger
