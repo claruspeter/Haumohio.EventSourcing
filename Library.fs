@@ -28,45 +28,74 @@ type EventSource =
 
 
 module Projection =
-  type DateProvider = unit -> DateTime
-  type CommandProcessor<'S, 'C, 'E> = 'S -> 'C -> CommandResult<'E>
-  type Projector<'S, 'E> = 'S -> 'E -> 'S
+  type Projector<'S, 'E> = 'S -> Timed<'E> -> 'S
 
-  let resolveMany (resolver: Projector<'S, 'E>) (state: 'S) (events: 'E seq) =
+  let resolveMany (resolver: Projector<'S, 'E>) (state: 'S) (events: Timed<'E> seq) =
       events |> Seq.fold resolver state 
 
-  let projectFromSource<'S, 'E> (initialState: 'S) projectFutureState  (src:EventSource) = 
+  let projectFromSource<'S, 'E> (initialState: 'S) (projectFutureState: Projector<'S, 'E>)  (src:EventSource) = 
     src.load<'E> "sportsball"
     |> resolveMany projectFutureState initialState
 
-module Commands = 
-  open Projection 
+type CommandProcessor<'S, 'C, 'E> = 'S -> 'C -> CommandResult<'E>
+type DateProvider = unit -> DateTime
 
-  let applyCommand<'S, 'C, 'E> 
-      (utcNow: DateProvider)
-      (logger: Logger)
-      (processor: CommandProcessor<'S, 'C, 'E>)
+open Projection 
+type private BatchResult<'S, 'E> = {
+  prev: CommandResult<'E>
+  state: 'S
+}
+
+type Commands<'S, 'C, 'E> = {
+  utcNow: DateProvider
+  logger: Logger
+  processor: CommandProcessor<'S, 'C, 'E>
+}
+with 
+  member this.applyCommand
       (initialState: 'S)
       (cmd: 'C) 
       : CommandResult<'E> =
     try
-      processor initialState cmd
+      this.processor initialState cmd
     with 
     | exc -> exc.ToString() |> Failure
 
-  let applyCommandToEventSource<'S, 'C, 'E> 
-      (utcNow: DateProvider)
-      (logger: Logger)
-      (processor: CommandProcessor<'S, 'C, 'E>)
+  member this.applyResultToEventSource 
+      (src: EventSource) 
+      (result:CommandResult<'E>) =
+    match result with 
+    | Success result -> 
+        result
+        |> Seq.map (fun x -> {event=x; at=this.utcNow() })
+        |> src.append "sportsball" 
+    | Pass -> src
+    | Failure msg -> msg |> System.Exception |> fail this.logger
+
+  member this.applyCommandToEventSource
       (initialState: 'S)
       (src:EventSource) 
       (cmd: 'C)=
     cmd 
-    |> applyCommand utcNow logger processor initialState
-    |> function 
-        | Success result -> 
-            result
-            |> Seq.map (fun x -> {event=x; at=utcNow() })
-            |> src.append "sportsball" 
-        | Pass -> src
-        | Failure msg -> msg |> System.Exception |> fail logger
+    |> this.applyCommand initialState
+    |> this.applyResultToEventSource src
+
+  member this.applyBatchToEventSource
+      (projector: Projector<'S, 'E>)
+      (initialState: 'S)
+      (src:EventSource) 
+      (batch: ('S -> CommandResult<'E>) seq) =
+    
+    batch 
+    |> Seq.fold (
+        fun acc cmd ->
+          let res = cmd acc.state
+          match res with 
+          | Failure msg -> { prev=Failure msg; state=acc.state } 
+          | Pass -> { prev=Pass; state=acc.state } 
+          | Success events -> { prev=acc.prev.append res; state=events |> Seq.map (fun e -> {event=e; at=this.utcNow()}) |> resolveMany projector acc.state  }
+
+      ) 
+      { prev=CommandResult<'E>.Pass; state=initialState }
+    |> fun x -> x.prev
+    |> this.applyResultToEventSource src
