@@ -5,15 +5,23 @@ open Haumohio.EventSourcing.Common
 
 type FileEventSource() = 
   let ROOT_FOLDER = "/home/peter/Projects/misc/sportsball5/data/events/"
-  interface EventSource with
 
+  member private this.loadFile<'Tevt> filename =
+    try
+      filename 
+      |> File.ReadAllText
+      |> Newtonsoft.Json.JsonConvert.DeserializeObject<Timed<'Tevt>>
+    with 
+    | exc ->
+      Common.fail (fun x -> printfn "%s (%s)" x filename) exc
+
+  interface EventSource with
     member this.load<'Tevt> domain =
       let folder = ROOT_FOLDER + domain
       if Directory.Exists(folder) |> not then Directory.CreateDirectory(folder) |> ignore
       Directory.EnumerateFiles(folder)
       |> Seq.sort
-      |> Seq.map File.ReadAllText 
-      |> Seq.map Newtonsoft.Json.JsonConvert.DeserializeObject<Timed<'Tevt>>
+      |> Seq.map this.loadFile<'Tevt>
 
     member this.append domain eventsGenerated=
       try

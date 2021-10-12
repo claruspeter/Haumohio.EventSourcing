@@ -59,7 +59,9 @@ with
     try
       this.processor initialState cmd
     with 
-    | exc -> exc.ToString() |> Failure
+    | exc -> 
+      exc.ToString() |> this.logger
+      exc.Message |> Failure
 
   member this.applyResultToEventSource 
       (src: EventSource) 
