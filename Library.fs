@@ -38,8 +38,8 @@ module Projection =
   let resolveMany (resolver: Projector<'S, 'E>) (state: 'S) (events: Timed<'E> seq) =
       events |> Seq.fold resolver state 
 
-  let projectFromSource<'S, 'E> (initialState: 'S) (projectFutureState: Projector<'S, 'E>)  (src:EventSource) = 
-    src.load<'E> "sportsball"
+  let projectFromSource<'S, 'E> (initialState: 'S) (projectFutureState: Projector<'S, 'E>)  (src:EventSource) (domain: string)= 
+    src.load<'E> domain
     |> resolveMany projectFutureState initialState
 
 type CommandProcessor<'S, 'C, 'E> = 'S -> UserId -> 'C -> CommandResult<'E>
@@ -71,28 +71,31 @@ with
 
   member this.applyResultToEventSource 
       (src: EventSource) 
+      (domain: string)
       (result:CommandResult<'E>) =
     match result with 
     | Success result -> 
         result.events
         |> Seq.map (fun x -> {event=x; at=this.utcNow(); by=result.by })
-        |> src.append "sportsball" 
+        |> src.append domain 
     | Pass -> src
     | Failure (user, msg) -> msg |> System.Exception |> fail this.logger user
 
   member this.applyCommandToEventSource
       (initialState: 'S)
       (src:EventSource) 
+      (domain: string)
       (user: UserId)
       (cmd: 'C)=
     cmd 
     |> this.applyCommand initialState user
-    |> this.applyResultToEventSource src
+    |> this.applyResultToEventSource src domain
 
   member this.applyBatchToEventSource
       (projector: Projector<'S, 'E>)
       (initialState: 'S)
       (src:EventSource) 
+      (domain: string)
       (batch: ('S -> CommandResult<'E>) seq) =
     
     batch 
@@ -114,4 +117,4 @@ with
       ) 
       { prev=CommandResult<'E>.Pass; state=initialState }
     |> fun x -> x.prev
-    |> this.applyResultToEventSource src
+    |> this.applyResultToEventSource src domain
