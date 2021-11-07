@@ -5,13 +5,18 @@ open Haumohio.EventSourcing.Common
 type Timed<'E> = {
   event: 'E
   at: DateTime
+  by: UserId
 }
 
-type Logger = string -> unit
+type UserEvents<'E> = {
+  by: UserId
+  events: 'E seq
+}
+
 
 type CommandResult<'E> =
-  | Success of 'E seq
-  | Failure of string
+  | Success of UserEvents<'E>
+  | Failure of UserId * string
   | Pass
 with 
   member this.append (res2:CommandResult<'E>) =
@@ -20,7 +25,7 @@ with
     | _ , Failure _ -> res2
     | Pass, _ -> res2
     | _, Pass -> this
-    | Success x, Success y -> Seq.append x y |> Success
+    | Success x, Success y -> { by=x.by; events=Seq.append x.events y.events } |> Success
 
 type EventSource = 
   abstract member load<'E> : string -> Timed<'E> seq
@@ -37,7 +42,7 @@ module Projection =
     src.load<'E> "sportsball"
     |> resolveMany projectFutureState initialState
 
-type CommandProcessor<'S, 'C, 'E> = 'S -> 'C -> CommandResult<'E>
+type CommandProcessor<'S, 'C, 'E> = 'S -> UserId -> 'C -> CommandResult<'E>
 type DateProvider = unit -> DateTime
 
 open Projection 
@@ -54,32 +59,34 @@ type Commands<'S, 'C, 'E> = {
 with 
   member this.applyCommand
       (initialState: 'S)
+      (user: UserId)
       (cmd: 'C) 
       : CommandResult<'E> =
     try
-      this.processor initialState cmd
+      this.processor initialState user cmd
     with 
     | exc -> 
-      exc.ToString() |> this.logger
-      exc.Message |> Failure
+      exc.ToString() |> this.logger user
+      (user, exc.Message) |> Failure
 
   member this.applyResultToEventSource 
       (src: EventSource) 
       (result:CommandResult<'E>) =
     match result with 
     | Success result -> 
-        result
-        |> Seq.map (fun x -> {event=x; at=this.utcNow() })
+        result.events
+        |> Seq.map (fun x -> {event=x; at=this.utcNow(); by=result.by })
         |> src.append "sportsball" 
     | Pass -> src
-    | Failure msg -> msg |> System.Exception |> fail this.logger
+    | Failure (user, msg) -> msg |> System.Exception |> fail this.logger user
 
   member this.applyCommandToEventSource
       (initialState: 'S)
       (src:EventSource) 
+      (user: UserId)
       (cmd: 'C)=
     cmd 
-    |> this.applyCommand initialState
+    |> this.applyCommand initialState user
     |> this.applyResultToEventSource src
 
   member this.applyBatchToEventSource
@@ -93,9 +100,16 @@ with
         fun acc cmd ->
           let res = cmd acc.state
           match res with 
-          | Failure msg -> { prev=Failure msg; state=acc.state } 
+          | Failure (user, msg) -> { prev=Failure (user, msg); state=acc.state } 
           | Pass -> { prev=Pass; state=acc.state } 
-          | Success events -> { prev=acc.prev.append res; state=events |> Seq.map (fun e -> {event=e; at=this.utcNow()}) |> resolveMany projector acc.state  }
+          | Success x -> 
+              { 
+                prev=acc.prev.append res
+                state=
+                  x.events 
+                  |> Seq.map (fun e -> {event=e; at=this.utcNow(); by=x.by}) 
+                  |> resolveMany projector acc.state  
+              }
 
       ) 
       { prev=CommandResult<'E>.Pass; state=initialState }

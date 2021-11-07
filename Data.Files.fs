@@ -13,7 +13,7 @@ type FileEventSource() =
       |> Newtonsoft.Json.JsonConvert.DeserializeObject<Timed<'Tevt>>
     with 
     | exc ->
-      Common.fail (fun x -> printfn "%s (%s)" x filename) exc
+      Common.fail (fun u msg -> printfn "%s:%s (%s)" u msg filename) "LOADING" exc
 
   interface EventSource with
     member this.load<'Tevt> domain =
@@ -32,4 +32,4 @@ type FileEventSource() =
         |> Seq.iteri (fun i x -> File.WriteAllText ($"{folder}/{datestamp x.at}_{i}_{x.name}.json", x.body)) 
         this :> _
       with
-      | exc -> fail (printfn "%s") exc
+      | exc -> fail (printfn "%s:%s") "evtsource" exc
