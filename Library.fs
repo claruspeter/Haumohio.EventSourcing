@@ -27,10 +27,13 @@ with
     | _, Pass -> this
     | Success x, Success y -> { by=x.by; events=Seq.append x.events y.events } |> Success
 
-type EventSource = 
-  abstract member load<'E> : string -> Timed<'E> seq
-  abstract member append<'E> : string -> Timed<'E> seq -> EventSource
-
+[<AbstractClass>]
+type EventSource(domain: string) = 
+  member this.domain = domain
+  abstract member loadFromDomain<'E> : string -> Timed<'E> seq
+  abstract member appendToDomain<'E> : string -> Timed<'E> seq -> EventSource
+  member this.load<'E>() = this.loadFromDomain domain
+  member this.append<'E> events = this.appendToDomain domain events
 
 module Projection =
   type Projector<'S, 'E> = 'S -> Timed<'E> -> 'S
@@ -38,8 +41,8 @@ module Projection =
   let resolveMany (resolver: Projector<'S, 'E>) (state: 'S) (events: Timed<'E> seq) =
       events |> Seq.fold resolver state 
 
-  let projectFromSource<'S, 'E> (initialState: 'S) (projectFutureState: Projector<'S, 'E>)  (src:EventSource) (domain: string)= 
-    src.load<'E> domain
+  let projectFromSource<'S, 'E> (initialState: 'S) (projectFutureState: Projector<'S, 'E>)  (src:EventSource)= 
+    src.loadFromDomain<'E> src.domain
     |> resolveMany projectFutureState initialState
 
 type CommandProcessor<'S, 'C, 'E> = 'S -> UserId -> 'C -> CommandResult<'E>
@@ -71,31 +74,28 @@ with
 
   member this.applyResultToEventSource 
       (src: EventSource) 
-      (domain: string)
       (result:CommandResult<'E>) =
     match result with 
     | Success result -> 
         result.events
         |> Seq.map (fun x -> {event=x; at=this.utcNow(); by=result.by })
-        |> src.append domain 
+        |> src.appendToDomain src.domain 
     | Pass -> src
     | Failure (user, msg) -> msg |> System.Exception |> fail this.logger user
 
   member this.applyCommandToEventSource
       (initialState: 'S)
       (src:EventSource) 
-      (domain: string)
       (user: UserId)
       (cmd: 'C)=
     cmd 
     |> this.applyCommand initialState user
-    |> this.applyResultToEventSource src domain
+    |> this.applyResultToEventSource src
 
   member this.applyBatchToEventSource
       (projector: Projector<'S, 'E>)
       (initialState: 'S)
       (src:EventSource) 
-      (domain: string)
       (batch: ('S -> CommandResult<'E>) seq) =
     
     batch 
@@ -117,4 +117,4 @@ with
       ) 
       { prev=CommandResult<'E>.Pass; state=initialState }
     |> fun x -> x.prev
-    |> this.applyResultToEventSource src domain
+    |> this.applyResultToEventSource src
