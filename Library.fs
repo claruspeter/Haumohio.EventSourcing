@@ -28,10 +28,10 @@ with
     | Success x, Success y -> { by=x.by; events=Seq.append x.events y.events } |> Success
 
 [<AbstractClass>]
-type EventSource(domain: string) = 
+type EventSource<'E>(domain: string) = 
   member this.domain = domain
   abstract member loadFromDomain<'E> : string -> Timed<'E> seq
-  abstract member appendToDomain<'E> : string -> Timed<'E> seq -> EventSource
+  abstract member appendToDomain<'E> : string -> Timed<'E> seq -> EventSource<'E>
   member this.load<'E>() = this.loadFromDomain domain
   member this.append<'E> events = this.appendToDomain domain events
 
@@ -41,7 +41,7 @@ module Projection =
   let resolveMany (resolver: Projector<'S, 'E>) (state: 'S) (events: Timed<'E> seq) =
       events |> Seq.fold resolver state 
 
-  let projectFromSource<'S, 'E> (initialState: 'S) (projectFutureState: Projector<'S, 'E>)  (src:EventSource)= 
+  let projectFromSource<'S, 'E> (initialState: 'S) (projectFutureState: Projector<'S, 'E>)  (src:EventSource<'E>)= 
     src.loadFromDomain<'E> src.domain
     |> resolveMany projectFutureState initialState
 
@@ -73,7 +73,7 @@ with
       (user, exc.Message) |> Failure
 
   member this.applyResultToEventSource 
-      (src: EventSource) 
+      (src: EventSource<'E>) 
       (result:CommandResult<'E>) =
     match result with 
     | Success result -> 
@@ -85,7 +85,7 @@ with
 
   member this.applyCommandToEventSource
       (initialState: 'S)
-      (src:EventSource) 
+      (src:EventSource<'E>) 
       (user: UserId)
       (cmd: 'C)=
     cmd 
@@ -95,7 +95,7 @@ with
   member this.applyBatchToEventSource
       (projector: Projector<'S, 'E>)
       (initialState: 'S)
-      (src:EventSource) 
+      (src:EventSource<'E>) 
       (batch: ('S -> CommandResult<'E>) seq) =
     
     batch 

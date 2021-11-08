@@ -2,15 +2,15 @@ namespace Haumohio.EventSourcing
 open System.Collections.Generic
 open Haumohio.EventSourcing.Common
 
-type MemoryEventSource(domain) = 
-  inherit  EventSource(domain)
+type MemoryEventSource<'E>(domain) = 
+  inherit  EventSource<'E>(domain)
 
   let events = new Dictionary<string, obj list>()
 
-  override this.loadFromDomain<'Tevt> domain =
+  override this.loadFromDomain domain =
     if events.ContainsKey domain |> not then events.[domain] <- []
     events.[domain]
-    |> Seq.map ( fun x -> x :?> Timed<'Tevt>)
+    |> Seq.map ( fun x -> x :?> Timed<'E>)
 
   override this.appendToDomain domain eventsGenerated =
     if events.ContainsKey domain |> not then events.[domain] <- []

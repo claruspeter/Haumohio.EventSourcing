@@ -3,26 +3,26 @@ open System
 open System.IO
 open Haumohio.EventSourcing.Common
 
-type FileEventSource(domain) = 
-  inherit  EventSource(domain)
+type FileEventSource<'E>(domain) = 
+  inherit  EventSource<'E>(domain)
 
   let ROOT_FOLDER = "/home/peter/Projects/misc/sportsball5/data/events/"
 
-  member private this.loadFile<'Tevt> filename =
+  member private this.loadFile filename =
     try
       filename 
       |> File.ReadAllText
-      |> Newtonsoft.Json.JsonConvert.DeserializeObject<Timed<'Tevt>>
+      |> Newtonsoft.Json.JsonConvert.DeserializeObject<Timed<'E>>
     with 
     | exc ->
       Common.fail (fun u msg -> printfn "%s:%s (%s)" u msg filename) "LOADING" exc
 
-  override this.loadFromDomain<'Tevt> domain =
+  override this.loadFromDomain domain =
     let folder = ROOT_FOLDER + domain
     if Directory.Exists(folder) |> not then Directory.CreateDirectory(folder) |> ignore
     Directory.EnumerateFiles(folder)
     |> Seq.sort
-    |> Seq.map this.loadFile<'Tevt>
+    |> Seq.map this.loadFile
 
   override this.appendToDomain domain eventsGenerated=
     try
