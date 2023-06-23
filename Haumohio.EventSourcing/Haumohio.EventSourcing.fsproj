@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackAsTool>false</PackAsTool>
+    <PackageId>Haumohio.EventSourcing</PackageId>
+    <Version>2.0.1</Version>
+    <Authors>Peter Bayne,Haumohio</Authors>
+    <Title>Haumohio Event Sourcing</Title>
+    <Description>A library for commands, events, and projections of those events into state</Description>
+    <Copyright>Copyright (c) 2022 Haumohio</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>F#,EventSourcing</PackageTags>
+    <RepositoryUrl>https://github.com/claruspeter/Haumohio.EventSourcing</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Library.fs" />
+    <None Include="..\LICENCE.txt" Pack="true" PackagePath="" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>
