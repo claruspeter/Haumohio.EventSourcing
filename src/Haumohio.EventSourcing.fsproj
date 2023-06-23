@@ -1,16 +1,34 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <WarnOn>3390;$(WarnOn)</WarnOn>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <PackAsTool>false</PackAsTool>
+    <PackageId>Haumohio.EventSourcing</PackageId>
+    <Authors>Peter Bayne,Haumohio</Authors>
+    <Title>Haumohio Event Sourcing</Title>
+    <Description>A library for commands, events, and projections of those events into state</Description>
+    <Copyright>Copyright (c) 2022 Haumohio</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>F#,EventSourcing</PackageTags>
+    <RepositoryUrl>https://github.com/claruspeter/Haumohio.EventSourcing</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
 
   <ItemGroup>
     <Compile Include="Common.fs" />
     <Compile Include="Library.fs" />
     <Compile Include="Data.Memory.fs" />
     <Compile Include="Data.Files.fs" />
+
+    <None Include="..\LICENCE.txt" Pack="true" PackagePath="" />
+    <None Include="..\README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
   <ItemGroup>
