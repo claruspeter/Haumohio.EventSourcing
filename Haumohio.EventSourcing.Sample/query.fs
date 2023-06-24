@@ -1,7 +1,11 @@
 namespace Haumohio.EventSourcing.Sample
 
+
+
 type Query() =
-  member this.names = ["Jo"; "Alex"]
+  member this.people = Domain.people()
 
 type Mutations() =
-  member this.addName (name:string) = "<insert name into data and return the list of names>"
+  member this.addPerson (name:string) =
+    Domain.addPerson name
+    
