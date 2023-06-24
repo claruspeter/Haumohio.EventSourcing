@@ -1,5 +1,10 @@
 ﻿namespace Haumohio.EventSourcing
+open System
 
-module Say =
-    let hello name =
-        printfn "Hello %s" name
+type UserId = string
+
+type Event<'T> = {
+  at: DateTime
+  by: UserId
+  details: 'T
+}

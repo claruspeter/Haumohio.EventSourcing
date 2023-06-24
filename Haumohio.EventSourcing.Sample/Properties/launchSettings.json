@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Haumohio_EventSourcing_Sample": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7126",
+      "launchBrowser": false
+    }
+  }
+}

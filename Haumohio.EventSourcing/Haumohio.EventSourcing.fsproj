@@ -25,4 +25,8 @@
     <None Include="README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Haumohio.Storage" Version="2.0.0" />
+  </ItemGroup>
+
 </Project>
