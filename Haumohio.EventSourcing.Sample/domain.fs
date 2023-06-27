@@ -11,23 +11,31 @@ module Domain =
     name: string;
   }
 
-  type PersonEvent =
-    | Add of {| name: string |}
+  type DomainEvent =
+    | PersonAdded of {| name: string |}
 
-  let state = Haumohio.Storage.Memory.MemoryStore.container("state")
+  type DomainEvent1 = Event<DomainEvent>
 
-  let projector people event =
+  [<CLIMutable>]
+  type PeopleState = {
+    people: Person seq
+  } with 
+    static member Empty = {people=[]}
+
+  let private container apiKey = MemoryStore.container apiKey
+
+  let projector state event =
       match event.details with 
-      | Add x -> people |> Seq.append [{Person.name = x.name}]
+      | PersonAdded x -> {state with people= state.people |> Seq.append [{Person.name = x.name}]}
 
-  let people() =
-    let initial = state.all<Person>("")
-    let events = state.all<Event<PersonEvent>>("");
-    project projector events initial
+  let people apiKey  =
+    let loader = apiKey |> container |> loadState
+    loader PeopleState.Empty projector
 
-  let addPerson (name:string) =
-    { at = DateTime.UtcNow; by = "me"; details = (Add {|name=name|}) }
-    |> fun x -> state.save (x.at.ToString("r")) x 
+  let addPerson apiKey (name:string) =
+    let c = apiKey |> container
+    { at = DateTime.UtcNow; by = "me"; details = (PersonAdded {|name=name|}) }
+    |> fun x -> c.save (x.at.ToString("r")) x 
     |> ignore
     {| name = name |}
     
