@@ -6,6 +6,9 @@ module Domain =
   open Haumohio.EventSourcing.Projection
   open Haumohio.Storage.Memory
 
+  let internal DUName (x:'a) =
+    match Microsoft.FSharp.Reflection.FSharpValue.GetUnionFields(x, typeof<'a>) with
+    | case, _ -> case.Name
 
   type Person = {
     name: string;
@@ -14,28 +17,34 @@ module Domain =
   type DomainEvent =
     | PersonAdded of {| name: string |}
 
-  type DomainEvent1 = Event<DomainEvent>
-
   [<CLIMutable>]
   type PeopleState = {
     people: Person seq
   } with 
     static member Empty = {people=[]}
+  let private empty : Person seq = []
 
-  let private container apiKey = MemoryStore.container apiKey
+  let private container clientId = MemoryStore.container clientId
 
-  let projector state event =
+  let projector (state: Person seq) event =
       match event.details with 
-      | PersonAdded x -> {state with people= state.people |> Seq.append [{Person.name = x.name}]}
+      | PersonAdded x -> state |> Seq.append [{Person.name = x.name}]
 
-  let people apiKey  =
-    let loader = apiKey |> container |> loadState
-    loader PeopleState.Empty projector
+  let people clientId  =
+    let loader = clientId |> container |> loadState
+    loader empty projector
 
-  let addPerson apiKey (name:string) =
-    let c = apiKey |> container
-    { at = DateTime.UtcNow; by = "me"; details = (PersonAdded {|name=name|}) }
-    |> fun x -> c.save (x.at.ToString("r")) x 
-    |> ignore
-    {| name = name |}
+  let addPerson clientId userName (name:string) =
+    let c = clientId |> container
+    let event = { at = DateTime.UtcNow; by = userName; details = (PersonAdded {|name=name|}) }
+    printfn "%s"  $"event_{event.at: u}"
+    c.save 
+      $"event_{event.at: u}"
+      event
+      |> ignore
+    {|
+      at=event.at
+      by=event.by
+      details=event.details |> DUName
+    |}
     

@@ -9,4 +9,3 @@ type Event<'T> = {
   by: UserId
   details: 'T
 }
-

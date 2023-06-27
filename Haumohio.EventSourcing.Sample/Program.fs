@@ -13,7 +13,7 @@ open Haumohio.EventSourcing.Sample
 let configureServices (services : IServiceCollection) =
     services
       .AddLogging()
-      .AddSingleton(typeof<IFunctionContextAccessor>, typeof<FunctionContextAccessor>)
+      .AddSingleton(typeof<IAuthenticatedFunctionAccessor>, typeof<AuthenticatedFunctionAccessor>)
       .AddAzureFuncGraphql<Query, Mutations>()
       |> ignore
 
@@ -25,7 +25,7 @@ let configureLogging (builder : ILoggingBuilder) =
 let configureApp (builder: IFunctionsWorkerApplicationBuilder) =
   builder
     .UseAzureFuncJwt()
-    .UseMiddleware<FunctionContextAccessorMiddleware>()
+    .UseMiddleware<AuthenticatedFunctionAccessorMiddleware>()
     |> ignore
 
 let host = 
