@@ -4,6 +4,7 @@ open System
 module Domain =
   open Haumohio.EventSourcing
   open Haumohio.EventSourcing.Projection
+  open Haumohio.EventSourcing.EventStorage
   open Haumohio.Storage.Memory
 
   let internal DUName (x:'a) =
@@ -36,15 +37,12 @@ module Domain =
 
   let addPerson clientId userName (name:string) =
     let c = clientId |> container
-    let event = { at = DateTime.UtcNow; by = userName; details = (PersonAdded {|name=name|}) }
-    printfn "%s"  $"event_{event.at: u}"
-    c.save 
-      $"event_{event.at: u}"
-      event
-      |> ignore
-    {|
-      at=event.at
-      by=event.by
-      details=event.details |> DUName
-    |}
+    PersonAdded {|name=name|}
+    |> storeEvent c userName 
+    |> fun x ->
+      {|
+        at=x.at
+        by=x.by
+        details=x.details |> DUName
+      |}
     
