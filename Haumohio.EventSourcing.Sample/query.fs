@@ -19,6 +19,5 @@ type Query(auth: IAuthenticatedFunctionAccessor) =
 type Mutations(auth: IAuthenticatedFunctionAccessor)  =
   let creds = auth.Context.Value
 
-  member this.addPerson (name:string) =
-    Domain.addPerson creds.ClientId creds.UserName name
-    
+  member this.addPerson (personalName:string) (familyName:string) =
+    Domain.addPerson creds.ClientId creds.UserName personalName familyName
