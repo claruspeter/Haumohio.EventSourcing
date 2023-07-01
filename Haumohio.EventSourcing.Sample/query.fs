@@ -21,3 +21,6 @@ type Mutations(auth: IAuthenticatedFunctionAccessor)  =
 
   member this.addPerson (personalName:string) (familyName:string) =
     Domain.addPerson creds.ClientId creds.UserName personalName familyName
+
+  member this.assignRole (personId:string) (roleName:string) =
+    Domain.assignRole creds.ClientId creds.UserName personId roleName

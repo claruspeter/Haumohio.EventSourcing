@@ -9,15 +9,6 @@ module Domain =
   open Haumohio.EventSourcing.EventStorage
   open Haumohio.Storage.Memory
 
-  let internal DUName (x:'a) =
-    match Microsoft.FSharp.Reflection.FSharpValue.GetUnionFields(x, typeof<'a>) with
-    | case, _ -> case.Name
-
-  type Person = {
-    id: string
-    personalName: string;
-    familyName: string;
-  }
 
   let private hasher salt=
     new Hashids(salt, minHashLength=8, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ23456789")
@@ -31,12 +22,14 @@ module Domain =
 
   type DomainEvent =
     | PersonAdded of {| id: string; personalName:string; familyName: string |}
+    | RoleAssigned of {| personId: string; roleName: string |}
 
-  [<CLIMutable>]
-  type PeopleState = {
-    people: Person seq
-  } with 
-    static member Empty = {people=[]}
+  type Person = {
+    id: string
+    personalName: string;
+    familyName: string;
+    roles: string Set
+  }
 
   let private empty : Person seq = []
 
@@ -44,7 +37,13 @@ module Domain =
 
   let projector (state: Person seq) event =
       match event.details with 
-      | PersonAdded x -> state |> Seq.append [{Person.id = x.id; personalName = x.personalName; familyName = x.familyName}]
+      | PersonAdded x -> state |> Seq.append [{Person.id = x.id; personalName = x.personalName; familyName = x.familyName; roles = set [] }]
+      | RoleAssigned x -> 
+          match state |> Seq.tryFind (fun p -> p.id =x.personId) with 
+          | None -> state
+          | Some person ->
+            let updated = {person with roles = person.roles |> Set.add x.roleName }
+            state |> Seq.map ( fun p -> if p.id = x.personId then updated else p )
 
   let people clientId  =
     let loader = clientId |> container |> loadState
@@ -56,10 +55,10 @@ module Domain =
     eventDetail
     |> PersonAdded
     |> storeEvent c userName 
-    |> fun x ->
-      {|
-        at=x.at
-        by=x.by
-        details={| ``PersonAdded`` = eventDetail|}
-      |}
-    
+
+  let assignRole clientId userName personId rolename =
+    let c = clientId |> container
+    let eventDetail = {| personId = personId; roleName = rolename |}
+    eventDetail
+    |> RoleAssigned
+    |> storeEvent c userName 
