@@ -23,6 +23,12 @@ module Domain =
   type DomainEvent =
     | PersonAdded of {| id: string; personalName:string; familyName: string |}
     | RoleAssigned of {| personId: string; roleName: string |}
+    interface IHasDescription with
+        member this.description: string = 
+          match this with 
+          | PersonAdded x -> x.id
+          | RoleAssigned x -> x.roleName
+
 
   type Person = {
     id: string
