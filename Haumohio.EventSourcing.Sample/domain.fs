@@ -52,7 +52,7 @@ module Domain =
             state |> Seq.map ( fun p -> if p.id = x.personId then updated else p )
 
   let people clientId  =
-    let loader = clientId |> container |> loadState
+    let loader = clientId |> container |> loadState "people"
     loader empty projector
 
   let addPerson clientId userName personalName familyName =
@@ -60,11 +60,11 @@ module Domain =
     let eventDetail = {| id=calcId "P" clientId; personalName=personalName; familyName=familyName |}
     eventDetail
     |> PersonAdded
-    |> storeEvent c userName 
+    |> storeEvent  c "people" userName 
 
   let assignRole clientId userName personId rolename =
     let c = clientId |> container
     let eventDetail = {| personId = personId; roleName = rolename |}
     eventDetail
     |> RoleAssigned
-    |> storeEvent c userName 
+    |> storeEvent c "people" userName 
