@@ -26,8 +26,9 @@ module Projection =
     //printfn "Final State: %A"  final
     final 
 
-  let loadSince<'E> partition (container:StorageContainer) (since: DateTime) =
-    let dtString = since.ToString("o").Replace(':', '-').Replace(' ', '_').Replace('T', '_')
+  let loadAfter<'E> partition (container:StorageContainer) (after: DateTime) =
+    let dtString = after |> EventStorage.dateString
+    let prefix = $"{partition}/event_{dtString}"
     container.list partition 
-      |> Seq.filter (fun x -> x >= $"{partition}/event_{dtString}")
+      |> Seq.filter (fun x -> x.Substring(0, prefix.Length) > prefix)
       |> Seq.choose container.loadAs<Event<'E>>

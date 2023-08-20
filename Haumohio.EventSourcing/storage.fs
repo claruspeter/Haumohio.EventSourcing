@@ -18,11 +18,14 @@ module EventStorage =
 
   type IHasDescription = 
     abstract member description: string
+
+  let dateString (dt:DateTime) = 
+    dt.ToString("yyyy-MM-dd_HH-mm-ss.fff")
   
 
   let storeEvent<'Tevent when 'Tevent:> IHasDescription> (c:StorageContainer) partition userName (eventDetail:'Tevent) =
     let event = { at = DateTime.UtcNow; by = userName; details = eventDetail }
-    let dtString = event.at.ToString("o").Replace(':', '-').Replace(' ', '_').Replace('T', '_')
+    let dtString = event.at |> dateString
     let evtName = eventDetail |> DUName
     let filename = $"{partition}/event_{dtString}_{evtName}"
     printfn $"storing {filename}"
