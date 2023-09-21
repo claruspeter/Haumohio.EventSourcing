@@ -1,8 +1,10 @@
 namespace Haumohio.EventSourcing
 open System
+open Microsoft.Extensions.Logging
 
 module Projection =
   open Haumohio.Storage
+
   type Projector<'S, 'E> = 'S -> Event<'E> -> 'S
 
   let project (projector: Projector<'S, 'E>) (events: Event<'E> seq)  (initialState:'S) =
@@ -19,11 +21,9 @@ module Projection =
 
   let loadState<'S, 'E> partition (container:StorageContainer) (emptyState: 'S) (projector: Projector<'S, 'E>) : 'S =
     let initial = container |> loadLatestSnapshot emptyState partition
-    //printfn "Initial state: %A" initial
     let events = container.all<Event<'E>>($"{partition}/event")
-    printfn "Loading %d %s Events to project %s" (events |> Seq.length) partition (typeof<'S>.Name)
+    sprintf "Loading %d %s Events to project %s" (events |> Seq.length) partition (typeof<'S>.Name) |> container.logger.LogDebug
     let final = project projector events initial
-    //printfn "Final State: %A"  final
     final 
 
   let loadAfter<'E> partition (container:StorageContainer) (after: DateTime) =
