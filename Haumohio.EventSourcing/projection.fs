@@ -4,6 +4,7 @@ open Microsoft.Extensions.Logging
 
 module Projection =
   open Haumohio.Storage
+  open Haumohio
 
   type Projector<'S, 'E> = 'S -> Event<'E> -> 'S
 
@@ -19,11 +20,15 @@ module Projection =
     | xx -> 
       xx |> Seq.last |> container.loadAs<'S> |> Option.get
 
-  let loadState<'S, 'E> partition (container:StorageContainer) (emptyState: 'S) (projector: Projector<'S, 'E>) : 'S =
+  let loadState<'S, 'E when 'E: comparison> partition (container:StorageContainer) (emptyState: 'S) (projector: Projector<'S, 'E>) : 'S =
+    TimeSnap.snap "loadState()"
     let initial = container |> loadLatestSnapshot emptyState partition
-    let events = container.all<Event<'E>>($"{partition}/event")
+    TimeSnap.snap "loaded snapshot"
+    let events = container.all<Event<'E>>($"{partition}") |> Seq.toArray
+    TimeSnap.snap $"loaded events ({events.Length})"
     sprintf "Loading %d %s Events to project %s" (events |> Seq.length) partition (typeof<'S>.Name) |> container.logger.LogDebug
     let final = project projector events initial
+    TimeSnap.snap "projected state"
     final 
 
   let loadAfter<'E> partition (container:StorageContainer) (after: DateTime) =
