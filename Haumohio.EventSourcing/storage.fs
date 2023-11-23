@@ -22,6 +22,13 @@ module EventStorage =
 
   let dateString (dt:DateTime) = 
     dt.ToString("yyyy-MM-dd_HH-mm-ss.fff")
+
+  let eventDate (filename: string) = 
+    match filename.Split( [|'_'|], StringSplitOptions.RemoveEmptyEntries) with 
+    | parts when parts.Length >= 3 ->
+        parts[1] + " " + parts[2]
+        |> DateTime.Parse
+    | _ -> DateTime.MinValue
   
 
   let storeEvent<'Tevent when 'Tevent:> IHasDescription> (c:StorageContainer) partition userName (eventDetail:'Tevent) =
