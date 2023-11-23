@@ -35,25 +35,29 @@ module Domain =
     personalName: string;
     familyName: string;
     roles: string Set
-  }
+  }with 
+    interface IHasKey<string> with 
+      member this.Key = this.id
 
-  let private empty : Person seq = []
+  let private empty = State<string, Person>.empty
 
   let private container clientId = MemoryStore.container clientId
 
-  let projector (state: Person seq) event =
-      match event.details with 
-      | PersonAdded x -> state |> Seq.append [{Person.id = x.id; personalName = x.personalName; familyName = x.familyName; roles = set [] }]
-      | RoleAssigned x -> 
-          match state |> Seq.tryFind (fun p -> p.id =x.personId) with 
-          | None -> state
-          | Some person ->
-            let updated = {person with roles = person.roles |> Set.add x.roleName }
-            state |> Seq.map ( fun p -> if p.id = x.personId then updated else p )
+  let projector (state: State<string,Person>) event =
+    match event.details with 
+    | PersonAdded x -> state.data.Add(x.id, {Person.id = x.id; personalName = x.personalName; familyName = x.familyName; roles = set [] })
+    | RoleAssigned x -> 
+        match state.[x.personId] with 
+        | None -> ()
+        | Some person ->
+          let updated = {person with roles = person.roles |> Set.add x.roleName }
+          state.data.[x.personId] <- updated 
+    state
 
   let people clientId  =
     let loader = clientId |> container |> loadState "people"
     loader empty projector
+    |> fun x -> x.data.Values
 
   let addPerson clientId userName personalName familyName =
     let c = clientId |> container
