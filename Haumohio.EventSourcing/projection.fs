@@ -10,7 +10,7 @@ module Projection =
   type IHasKey<'T when 'T: equality> = 
     abstract member Key : 'T
 
-  type State<'Key, 'Model when 'Key: equality and 'Model :> IHasKey<'Key>> = {
+  type State<'Key, 'Model when 'Key: equality and 'Model :> IHasKey<'Key> and 'Model: equality> = {
     data: IDictionary<'Key, 'Model>
     at: DateTime
   }with 
@@ -20,22 +20,19 @@ module Projection =
       | true, x -> Some x
       | _ -> None
 
-  type Projector<'K, 'S, 'E when 'K: equality and 'S :> IHasKey<'K>> = State<'K,'S> -> Event<'E> -> State<'K,'S>
+  type Projector<'K, 'S, 'E when 'K: equality and 'S :> IHasKey<'K> and 'S: equality> = State<'K,'S> -> Event<'E> -> State<'K,'S>
 
   let project (projector: Projector<'K, 'S, 'E>) (events: Event<'E> seq)  (initialState:State<'K,'S>) =
     Seq.fold projector initialState events
 
-  let loadLatestSnapshot (emptyState: State<'K,'S>) (partition:string) (container:StorageContainer) =
+  let loadLatestSnapshot (partition:string) (container:StorageContainer) =
     match container.list(partition + "/" + typeof<'S>.Name) |> Seq.toList with 
     | [] -> 
-      emptyState
-    | [x] -> 
-      sprintf "Loading snapshot from %s" x |> container.logger.LogDebug
-      container.loadAs<State<'K,'S>>(x).Value
+      None
     | xx -> 
       let mostRecent = xx |> Seq.last 
       sprintf "Loading snapshot from %s" mostRecent |> container.logger.LogDebug
-      mostRecent |> container.loadAs<State<'K,'S>> |> Option.get
+      mostRecent |> container.loadAs<State<'K,'S>>
 
   let loadAfter<'E> partition (container:StorageContainer) (after: DateTime) =
     let dtString = after |> EventStorage.dateString
@@ -46,7 +43,7 @@ module Projection =
 
   let loadState partition (container:StorageContainer) (emptyState: State<'K,'S>) (projector: Projector<'K, 'S, 'E>) =
     TimeSnap.snap "loadState()"
-    let  initial = container |> loadLatestSnapshot emptyState partition
+    let  initial = container |> loadLatestSnapshot partition |> Option.defaultValue emptyState
     TimeSnap.snap $"loaded snapshot at {initial.at}"
     let events = loadAfter partition container initial.at |> Seq.toArray
     TimeSnap.snap $"loaded events ({events.Length})"
@@ -63,6 +60,13 @@ module Projection =
         (Haumohio.Storage.Internal.UtcNow() |> EventStorage.dateString)
     container.save $"{partition}/{filename}" state :?> _
 
-  let saveSingleState<'K, 'S when 'S :> IHasKey<'K> > (partition:string) (container:StorageContainer) (single: 'S) =
-    let state = {data = [( single.Key, single )] |> dict; at=Storage.Internal.UtcNow() }
-    saveState partition container state
+  let saveSingleState<'K, 'S when 'S :> IHasKey<'K> and 'S: equality > (partition:string) (container:StorageContainer) (single: 'S) =
+    let now = Storage.Internal.UtcNow()
+    let latest = loadLatestSnapshot partition container
+    latest
+    |> Option.map (fun x -> x.[single.Key] = Some single )
+    |> function
+        | Some true -> latest.Value
+        | _ ->
+          let state = {data = [( single.Key, single )] |> dict; at= now }
+          saveState partition container state
