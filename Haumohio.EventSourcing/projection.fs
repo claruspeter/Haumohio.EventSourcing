@@ -41,7 +41,10 @@ module Projection =
       partition
       (fun x -> 
         let fn = x.Split('/') |> Array.last
-        fn >= limit
+        if fn.StartsWith("event") then 
+          fn >= limit
+        else
+          false
       )
 
   let loadState partition (container:StorageContainer) (emptyState: State<'K,'S>) (projector: Projector<'K, 'S, 'E>) =
