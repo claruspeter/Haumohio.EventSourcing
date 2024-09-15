@@ -36,10 +36,13 @@ module Projection =
 
   let loadAfter<'E> partition (container:StorageContainer) (after: DateTime) =
     let dtString = after |> EventStorage.dateString
-    let prefix = $"{partition}/event_{dtString}"
-    container.list partition 
-      |> Seq.filter (fun x -> x.Contains("/event_") &&  x.Substring(0, prefix.Length) > prefix)
-      |> Seq.choose container.loadAs<Event<'E>>
+    let limit = $"event_{dtString}"
+    container.filtered<'E> 
+      partition
+      (fun x -> 
+        let fn = x.Split('/') |> Array.last
+        fn >= limit
+      )
 
   let loadState partition (container:StorageContainer) (emptyState: State<'K,'S>) (projector: Projector<'K, 'S, 'E>) =
     TimeSnap.snap "loadState()"
