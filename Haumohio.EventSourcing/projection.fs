@@ -51,7 +51,7 @@ module Projection =
     TimeSnap.snap "loadState()"
     let  initial = container |> loadLatestSnapshot partition |> Option.defaultValue emptyState
     TimeSnap.snap $"loaded snapshot at {initial.at}"
-    let events = loadAfter partition container initial.at |> Seq.toArray
+    let events = loadAfter partition container initial.at |> Seq.sortBy (fun (x: Event<'E>) -> x.at) |> Seq.toArray
     TimeSnap.snap $"loaded events ({events.Length})"
     sprintf "Loading %d %s Events to project %s" (events |> Seq.length) partition (typeof<'S>.Name) |> container.logger.LogDebug
     let final = project projector events initial
