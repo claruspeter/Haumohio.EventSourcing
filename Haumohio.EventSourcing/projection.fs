@@ -3,9 +3,14 @@ open System
 open System.Collections.Generic
 open Microsoft.Extensions.Logging
 
+#nowarn "3535"
+type IEmpty<'P> =
+  static abstract member empty: 'P
+
 module Projection =
   open Haumohio.Storage
   open Haumohio
+
 
   type IHasKey<'T when 'T: equality> = 
     abstract member Key : 'T
@@ -24,6 +29,23 @@ module Projection =
 
   let project (projector: Projector<'K, 'S, 'E>) (events: Event<'E> seq)  (initialState:State<'K,'S>) =
     Seq.fold projector initialState events
+
+  let amend<'K, 'P when 'P :> IHasKey<'K> and 'P:equality> (key: 'K) (updater: 'P -> 'P) (state: State<'K, 'P>) =
+    match state.data.ContainsKey key with 
+    | true ->
+        state.data.[key] <- state.data.[key] |> updater
+        state
+    | false -> 
+      printfn "Can't Amend - key not found %A" key
+      state
+  
+  let addOrAmend<'K, 'P when 'P :> IHasKey<'K> and 'P:equality and 'P :> IEmpty<'P>> key (updater: 'P -> 'P) (state: State<'K, 'P>) =
+    match key |> state.data.ContainsKey |> not with
+    | true ->
+        state.data.[key] <- 'P.empty |> updater
+        state
+    | false ->
+      amend key updater state
 
   let loadLatestSnapshot (partition:string) (container:StorageContainer) =
     match container.list(partition + "/" + typeof<'S>.Name) |> Seq.toList with 
