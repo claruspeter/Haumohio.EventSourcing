@@ -1,1 +1,6 @@
-module Program = let [<EntryPoint>] main _ = 0
+module Program =
+
+  [<assembly: Xunit.CollectionBehavior(DisableTestParallelization = true)>]
+  do()
+
+  let [<EntryPoint>] main _ = 0

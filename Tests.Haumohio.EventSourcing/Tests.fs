@@ -8,19 +8,9 @@ open Haumohio.EventSourcing
 open Haumohio.EventSourcing.Projection
 open Haumohio.EventSourcing.EventStorage
 open System.Collections.Generic
+open TestCommon
 
 let store = Haumohio.Storage.Memory.MemoryStore
-
-type TestEvents = 
-  | Data of amount: int
-  | Other of string
-with
-  interface IHasDescription with
-    member this.description: string =
-      match this with 
-      | Data amt -> $"DATA:{amt}"
-      | Other s -> $"OTHER:{s}"
-
 
 [<Fact>]
 let ``Event can be stored and retrieved`` () =
@@ -36,39 +26,22 @@ let ``Event can be stored and retrieved`` () =
   | Data amt -> amt |> should equal 42
   | _ -> failwith "Not Data"
 
-
-type TestProjection = {
-  id: string
-  sum: int
-}with
-  interface IHasKey<string> with 
-    member this.Key = this.id
-
-type TestState = Projection.State<string, TestProjection>
-
-let private projector (state: TestState) (ev: Event<TestEvents>) =
-  match ev.details with 
-  | Data x -> 
-    state.data.Add(KeyValuePair("A", {id="A"; sum=x}))
-    state
-  | _ -> state // do nothing 
-
 [<Fact>]
-let ``State can be loaded from and event within a partition`` () =
+let ``State can be loaded from an event within a partition`` () =
   Haumohio.Storage.Memory.resetAllData()
   let container = store.container "TEST"
   let response = storeEvent container "test1" "test_user" (Data 42)
   let empty = State<string, TestProjection>.empty
   let state = loadState "test1" container empty projector
-  state.data.Keys |> Seq.toList |> should equalSeq ["A"]
-  state.data.["A"].sum |> should equal 42
+  state.data.Keys |> Seq.toList |> should equalSeq ["42"]
+  state.data.["42"].sum |> should equal 42
 
 [<Fact>]
-let ``State can be loaded from and event within a sub-partition`` () =
+let ``State can be loaded from an event within a sub-partition`` () =
   Haumohio.Storage.Memory.resetAllData()
   let container = store.container "TEST"
   let response = storeEvent container "test1/sub1/sub2" "test_user" (Data 42)
   let empty = State<string, TestProjection>.empty
   let state = loadState "" container empty projector
-  state.data.Keys |> Seq.toList |> should equalSeq ["A"]
-  state.data.["A"].sum |> should equal 42
+  state.data.Keys |> Seq.toList |> should equalSeq ["42"]
+  state.data.["42"].sum |> should equal 42

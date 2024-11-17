@@ -38,6 +38,8 @@ module Domain =
   }with 
     interface IHasKey<string> with 
       member this.Key = this.id
+    interface IEmpty<Person> with 
+      static member empty = {id=""; personalName=""; familyName=""; roles=set []}
 
   let private empty = State<string, Person>.empty
 

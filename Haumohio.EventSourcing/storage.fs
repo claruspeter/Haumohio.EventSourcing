@@ -30,9 +30,8 @@ module EventStorage =
         |> DateTime.Parse
     | _ -> DateTime.MinValue
   
-
   let storeEvent<'Tevent when 'Tevent:> IHasDescription> (c:StorageContainer) partition userName (eventDetail:'Tevent) =
-    let event = { at = DateTime.UtcNow; by = userName; details = eventDetail }
+    let event = { at = (Haumohio.Storage.Internal.UtcNow()); by = userName; details = eventDetail }
     let dtString = event.at |> dateString
     let evtName = eventDetail |> DUName
     let filename = $"{partition}/event_{dtString}_{evtName}"

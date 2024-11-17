@@ -9,7 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="common.fs" />
     <Compile Include="Tests.fs" />
+    <Compile Include="SaveStateTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

@@ -28,7 +28,11 @@ module Projection =
   type Projector<'K, 'S, 'E when 'K: equality and 'S :> IHasKey<'K> and 'S: equality> = State<'K,'S> -> Event<'E> -> State<'K,'S>
 
   let project (projector: Projector<'K, 'S, 'E>) (events: Event<'E> seq)  (initialState:State<'K,'S>) =
-    Seq.fold projector initialState events
+    let final = Seq.fold projector initialState events
+    if events |> Seq.isEmpty  then 
+      final
+    else
+      {final with at= events |> Seq.last |> fun x -> x.at }
 
   let amend<'K, 'P when 'P :> IHasKey<'K> and 'P:equality> (key: 'K) (updater: 'P -> 'P) (state: State<'K, 'P>) =
     match state.data.ContainsKey key with 
@@ -47,14 +51,14 @@ module Projection =
     | false ->
       amend key updater state
 
-  let loadLatestSnapshot (partition:string) (container:StorageContainer) =
-    match container.list(partition + "/" + typeof<'S>.Name) |> Seq.toList with 
+  let loadLatestSnapshot<'K, 'P when 'P :> IHasKey<'K> and 'P:equality and 'P :> IEmpty<'P>> (partition:string) (container:StorageContainer): State<'K,'P> option =
+    match container.list(partition + "/" + typeof<'P>.Name) |> Seq.toList with 
     | [] -> 
       None
     | xx -> 
       let mostRecent = xx |> Seq.last 
       sprintf "Loading snapshot from %s" mostRecent |> container.logger.LogDebug
-      mostRecent |> container.loadAs<State<'K,'S>>
+      mostRecent |> container.loadAs<State<'K,'P>>
 
   let loadAfter<'E> partition (container:StorageContainer) (after: DateTime) =
     let dtString = after |> EventStorage.dateString
@@ -68,18 +72,20 @@ module Projection =
         else
           false
       )
+      
+
+  let loadStateFrom partition (container:StorageContainer) (initial: State<'K,'S>) (projector: Projector<'K, 'S, 'E>) =
+    let events = loadAfter partition container initial.at |> Seq.sortBy (fun (x: Event<'E>) -> x.at) |> Seq.toArray
+    TimeSnap.snap $"loaded events ({events.Length})"
+    let final = project projector events initial
+    TimeSnap.snap "projected state"
+    final
 
   let loadState partition (container:StorageContainer) (emptyState: State<'K,'S>) (projector: Projector<'K, 'S, 'E>) =
     TimeSnap.snap "loadState()"
     let  initial = container |> loadLatestSnapshot partition |> Option.defaultValue emptyState
     TimeSnap.snap $"loaded snapshot at {initial.at}"
-    let events = loadAfter partition container initial.at |> Seq.sortBy (fun (x: Event<'E>) -> x.at) |> Seq.toArray
-    TimeSnap.snap $"loaded events ({events.Length})"
-    sprintf "Loading %d %s Events to project %s" (events |> Seq.length) partition (typeof<'S>.Name) |> container.logger.LogDebug
-    let final = project projector events initial
-    TimeSnap.snap "projected state"
-    final 
-
+    loadStateFrom partition container initial projector
 
   let saveState (partition:string) (container:StorageContainer) (state: State<'K,'S>) : State<'K,'S> =
     let filename = 
@@ -88,7 +94,7 @@ module Projection =
         (Haumohio.Storage.Internal.UtcNow() |> EventStorage.dateString)
     container.save $"{partition}/{filename}" state :?> _
 
-  let saveSingleState<'K, 'S when 'S :> IHasKey<'K> and 'S: equality > (partition:string) (container:StorageContainer) (single: 'S) =
+  let saveSingleState<'K, 'S when 'S :> IHasKey<'K> and 'S: equality and 'S :> IEmpty<'S>> (partition:string) (container:StorageContainer) (single: 'S) =
     let now = Storage.Internal.UtcNow()
     let latest = loadLatestSnapshot partition container
     latest
@@ -98,3 +104,25 @@ module Projection =
         | _ ->
           let state = {data = [( single.Key, single )] |> dict; at= now }
           saveState partition container state
+
+  type SnapshotPolicy =
+    | Never
+    | EveryTime
+    | Daily
+    | Weekly
+
+  let makeState<'K, 'S, 'E when 'S :> IHasKey<'K> and 'S: equality and 'S :> IEmpty<'S>> 
+      partition 
+      (container:StorageContainer) 
+      (policy : SnapshotPolicy)
+      (emptyState: State<'K,'S>) 
+      (projector: Projector<'K, 'S, 'E>) =
+
+    let  initial = container |> loadLatestSnapshot<'K, 'S> partition |> Option.defaultValue emptyState
+    let state = loadState partition container emptyState projector
+    match policy, state.at - initial.at with 
+    | Never, _ -> state
+    | EveryTime, x when x > TimeSpan.Zero -> saveState partition container state  // on every change, not every query
+    | Daily, x when x > TimeSpan.FromDays(1) -> saveState partition container state
+    | Weekly, x when x > TimeSpan.FromDays(7) -> saveState partition container state
+    | _ -> state
