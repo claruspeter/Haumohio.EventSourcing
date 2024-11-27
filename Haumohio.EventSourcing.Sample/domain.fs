@@ -40,6 +40,8 @@ module Domain =
       member this.Key = this.id
     interface IEmpty<Person> with 
       static member empty = {id=""; personalName=""; familyName=""; roles=set []}
+    interface IAutoClean<Person> with 
+      member this.clean (): Person = this
 
   let private empty = State<string, Person>.empty
 

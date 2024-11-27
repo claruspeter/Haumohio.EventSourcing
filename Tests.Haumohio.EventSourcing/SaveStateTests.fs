@@ -65,3 +65,13 @@ let ``State saved by policy`` policy offset (result:bool) =
 
   state.data["1"].sum |> should equal 1
   container.list testPartName |> Seq.length |> (=) 3 |> should equal result
+
+[<Fact>]
+let ``State can auto clean``() =
+  let json = "{ 'sum': 3, 'id': 'Fred' }"
+  let result = Newtonsoft.Json.JsonConvert.DeserializeObject<TestProjection>(json)
+  result.sum |> should equal 3
+  result.id |> should equal "Fred"
+  result.stuff |> should equal null
+  let cleaned = (result :> IAutoClean<TestProjection>).clean()
+  cleaned.stuff |> should matchList []

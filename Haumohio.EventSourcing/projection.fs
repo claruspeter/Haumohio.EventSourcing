@@ -1,5 +1,6 @@
 namespace Haumohio.EventSourcing
 open System
+open System.Linq
 open System.Collections.Generic
 open Microsoft.Extensions.Logging
 
@@ -7,15 +8,25 @@ open Microsoft.Extensions.Logging
 type IEmpty<'P> =
   static abstract member empty: 'P
 
+type IAutoClean<'a> =
+  abstract member clean : unit -> 'a
+
 module Projection =
   open Haumohio.Storage
   open Haumohio
 
+  let inline unNull defaultValue value =
+    match value |> box with 
+    | null -> defaultValue
+    | _ -> value
+
+  let inline autoClean<'a when 'a :> IAutoClean<'a> > (state: 'a) =
+    (state :> IAutoClean<'a>).clean()
 
   type IHasKey<'T when 'T: equality> = 
     abstract member Key : 'T
 
-  type State<'Key, 'Model when 'Key: equality and 'Model :> IHasKey<'Key> and 'Model: equality> = {
+  type State<'Key, 'Model when 'Key: equality and 'Model :> IHasKey<'Key> and 'Model :> IAutoClean<'Model> and 'Model: equality> = {
     data: IDictionary<'Key, 'Model>
     at: DateTime
   }with 
@@ -25,7 +36,7 @@ module Projection =
       | true, x -> Some x
       | _ -> None
 
-  type Projector<'K, 'S, 'E when 'K: equality and 'S :> IHasKey<'K> and 'S: equality> = State<'K,'S> -> Event<'E> -> State<'K,'S>
+  type Projector<'K, 'S, 'E when 'K: equality and 'S :> IHasKey<'K> and 'S :> IAutoClean<'S> and 'S: equality> = State<'K,'S> -> Event<'E> -> State<'K,'S>
 
   let project (projector: Projector<'K, 'S, 'E>) (events: Event<'E> seq)  (initialState:State<'K,'S>) =
     let final = Seq.fold projector initialState events
@@ -34,7 +45,7 @@ module Projection =
     else
       {final with at= events |> Seq.last |> fun x -> x.at }
 
-  let amend<'K, 'P when 'P :> IHasKey<'K> and 'P:equality> (key: 'K) (updater: 'P -> 'P) (state: State<'K, 'P>) =
+  let amend<'K, 'P when 'P :> IHasKey<'K> and 'P :> IAutoClean<'P> and 'P:equality> (key: 'K) (updater: 'P -> 'P) (state: State<'K, 'P>) =
     match state.data.ContainsKey key with 
     | true ->
         state.data.[key] <- state.data.[key] |> updater
@@ -43,7 +54,7 @@ module Projection =
       printfn "Can't Amend - key not found %A" key
       state
   
-  let addOrAmend<'K, 'P when 'P :> IHasKey<'K> and 'P:equality and 'P :> IEmpty<'P>> key (updater: 'P -> 'P) (state: State<'K, 'P>) =
+  let addOrAmend<'K, 'P when 'P :> IHasKey<'K> and 'P :> IAutoClean<'P> and 'P:equality and 'P :> IEmpty<'P>> key (updater: 'P -> 'P) (state: State<'K, 'P>) =
     match key |> state.data.ContainsKey |> not with
     | true ->
         state.data.[key] <- 'P.empty |> updater
@@ -51,14 +62,23 @@ module Projection =
     | false ->
       amend key updater state
 
-  let loadLatestSnapshot<'K, 'P when 'P :> IHasKey<'K> and 'P:equality and 'P :> IEmpty<'P>> (partition:string) (container:StorageContainer): State<'K,'P> option =
+  let loadLatestSnapshot<'K, 'P when 'P :> IHasKey<'K> and 'P :> IAutoClean<'P> and 'P:equality and 'P :> IEmpty<'P>> (partition:string) (container:StorageContainer): State<'K,'P> option =
     match container.list(partition + "/" + typeof<'P>.Name) |> Seq.toList with 
     | [] -> 
       None
     | xx -> 
       let mostRecent = xx |> Seq.last 
       sprintf "Loading snapshot from %s" mostRecent |> container.logger.LogDebug
-      mostRecent |> container.loadAs<State<'K,'P>>
+      let state =
+        mostRecent 
+        |> container.loadAs<State<'K,'P>>
+      match state with 
+      | None -> None
+      | Some s ->
+        let cleaned = s.data |> Seq.map (fun x -> (x.Key, x.Value.clean())) |> fun x -> x.ToDictionary(fst, snd)
+        {s with data = cleaned}
+        |> Some
+
 
   let loadAfter<'E> partition (container:StorageContainer) (after: DateTime) =
     let dtString = after |> EventStorage.dateString
@@ -94,7 +114,7 @@ module Projection =
         (Haumohio.Storage.Internal.UtcNow() |> EventStorage.dateString)
     container.save $"{partition}/{filename}" state :?> _
 
-  let saveSingleState<'K, 'S when 'S :> IHasKey<'K> and 'S: equality and 'S :> IEmpty<'S>> (partition:string) (container:StorageContainer) (single: 'S) =
+  let saveSingleState<'K, 'S when 'S :> IHasKey<'K> and 'S :> IAutoClean<'S> and 'S: equality and 'S :> IEmpty<'S>> (partition:string) (container:StorageContainer) (single: 'S) =
     let now = Storage.Internal.UtcNow()
     let latest = loadLatestSnapshot partition container
     latest
@@ -111,7 +131,7 @@ module Projection =
     | Daily
     | Weekly
 
-  let makeState<'K, 'S, 'E when 'S :> IHasKey<'K> and 'S: equality and 'S :> IEmpty<'S>> 
+  let makeState<'K, 'S, 'E when 'S :> IHasKey<'K> and 'S :> IAutoClean<'S> and 'S: equality and 'S :> IEmpty<'S>> 
       partition 
       (container:StorageContainer) 
       (policy : SnapshotPolicy)

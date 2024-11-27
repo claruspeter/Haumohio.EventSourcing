@@ -18,18 +18,24 @@ with
 type TestProjection = {
   id: string
   sum: int
+  stuff: int list
 }with
   interface IHasKey<string> with 
     member this.Key = this.id
   interface IEmpty<TestProjection> with 
-    static member empty = {id=""; sum=0}
+    static member empty = {id=""; sum=0; stuff = []}
+  interface IAutoClean<TestProjection> with 
+    member this.clean() = 
+      {this with 
+        stuff = unNull [] this.stuff
+      }
 
 type TestState = Projection.State<string, TestProjection>
 
 let projector (state: TestState) (ev: Event<TestEvents>) =
   match ev.details with 
   | Data x -> 
-    state.data.Add(KeyValuePair(x.ToString(), {id=x.ToString(); sum=x}))
+    state.data.Add(KeyValuePair(x.ToString(), {id=x.ToString(); sum=x; stuff=[]}))
     state
   | _ -> state // do nothing 
 
