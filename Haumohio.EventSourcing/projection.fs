@@ -29,12 +29,19 @@ module Projection =
   type State<'Key, 'Model when 'Key: equality and 'Model :> IHasKey<'Key> and 'Model :> IAutoClean<'Model> and 'Model: equality> = {
     data: IDictionary<'Key, 'Model>
     at: DateTime
+    version: int
   }with 
-    static member empty = { data = new Dictionary<'Key, 'Model>(); at = DateTime.MinValue}
+    static member empty = { data = new Dictionary<'Key, 'Model>(); at = DateTime.MinValue; version=0}
     member this.Item with get (key:'Key) = 
       match this.data.TryGetValue key with 
       | true, x -> Some x
       | _ -> None
+    interface IAutoClean<State<'Key,'Model>> with 
+      member this.clean (): State<'Key,'Model> = 
+        if this.version = Unchecked.defaultof<int> then
+          {this with version = 0}
+        else
+          this
 
   type Projector<'K, 'S, 'E when 'K: equality and 'S :> IHasKey<'K> and 'S :> IAutoClean<'S> and 'S: equality> = State<'K,'S> -> Event<'E> -> State<'K,'S>
 
@@ -72,6 +79,7 @@ module Projection =
       let state =
         mostRecent 
         |> container.loadAs<State<'K,'P>>
+        |> Option.map (fun x -> x :> IAutoClean<State<'K, 'P>> |> _.clean() )
       match state with 
       | None -> None
       | Some s ->
@@ -79,6 +87,16 @@ module Projection =
         {s with data = cleaned}
         |> Some
 
+  let loadVersionedSnapshot<'K, 'S when 'S :> IHasKey<'K> and 'S :> IAutoClean<'S> and 'S:equality and 'S :> IEmpty<'S>>
+        partition 
+        container 
+        (emptyState: State<'K, 'S>) =
+      match container |> loadLatestSnapshot partition with 
+      | None -> emptyState
+      | Some x when x.version < emptyState.version -> 
+        container.logger.LogWarning("State {state} version has increased to {version} - recalculating from events", typeof<'S>.Name, emptyState.version)
+        emptyState
+      | Some x -> x
 
   let loadAfter<'E> partition (container:StorageContainer) (after: DateTime) =
     let dtString = after |> EventStorage.dateString
@@ -103,7 +121,7 @@ module Projection =
 
   let loadState partition (container:StorageContainer) (emptyState: State<'K,'S>) (projector: Projector<'K, 'S, 'E>) =
     TimeSnap.snap "loadState()"
-    let  initial = container |> loadLatestSnapshot partition |> Option.defaultValue emptyState
+    let initial =loadVersionedSnapshot partition container emptyState
     TimeSnap.snap $"loaded snapshot at {initial.at}"
     loadStateFrom partition container initial projector
 
@@ -114,7 +132,7 @@ module Projection =
         (Haumohio.Storage.Internal.UtcNow() |> EventStorage.dateString)
     container.save $"{partition}/{filename}" state :?> _
 
-  let saveSingleState<'K, 'S when 'S :> IHasKey<'K> and 'S :> IAutoClean<'S> and 'S: equality and 'S :> IEmpty<'S>> (partition:string) (container:StorageContainer) (single: 'S) =
+  let saveSingleState<'K, 'S when 'S :> IHasKey<'K> and 'S :> IAutoClean<'S> and 'S: equality and 'S :> IEmpty<'S>> (partition:string) (container:StorageContainer) (single: 'S) version =
     let now = Storage.Internal.UtcNow()
     let latest = loadLatestSnapshot partition container
     latest
@@ -122,7 +140,7 @@ module Projection =
     |> function
         | Some true -> latest.Value
         | _ ->
-          let state = {data = [( single.Key, single )] |> dict; at= now }
+          let state = {data = [( single.Key, single )] |> dict; at= now; version=version }
           saveState partition container state
 
   type SnapshotPolicy =
@@ -138,8 +156,8 @@ module Projection =
       (emptyState: State<'K,'S>) 
       (projector: Projector<'K, 'S, 'E>) =
 
-    let  initial = container |> loadLatestSnapshot<'K, 'S> partition |> Option.defaultValue emptyState
-    let state = loadState partition container emptyState projector
+    let initial = loadVersionedSnapshot partition container emptyState
+    let state = loadStateFrom partition container initial projector
     match policy, state.at - initial.at with 
     | Never, _ -> state
     | EveryTime, x when x > TimeSpan.Zero -> saveState partition container state  // on every change, not every query

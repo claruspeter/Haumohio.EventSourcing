@@ -44,6 +44,7 @@ let saveFakeStateAt (at: DateTime) (container:Haumohio.Storage.StorageContainer)
   let state : TestState = {
     at = at
     data = new Dictionary<string, TestProjection>()
+    version = 1
   }
   let filename = 
       sprintf "%s_%s"

@@ -12,6 +12,7 @@
     <Compile Include="common.fs" />
     <Compile Include="Tests.fs" />
     <Compile Include="SaveStateTests.fs" />
+    <Compile Include="StateVersioningTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
