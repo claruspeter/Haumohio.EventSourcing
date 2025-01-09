@@ -39,4 +39,4 @@ let projector (state: TestState) (ev: Event<TestEvents>) =
     state
   | _ -> state // do nothing 
 
-let empty = State<string, TestProjection>.empty
+let empty = State<string, TestProjection>.empty 1

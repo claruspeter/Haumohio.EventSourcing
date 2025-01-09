@@ -43,7 +43,7 @@ module Domain =
     interface IAutoClean<Person> with 
       member this.clean (): Person = this
 
-  let private empty = State<string, Person>.empty
+  let private empty = State<string, Person>.empty 1
 
   let private container clientId = MemoryStore.container clientId
 

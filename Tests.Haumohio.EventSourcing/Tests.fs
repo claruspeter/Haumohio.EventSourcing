@@ -31,7 +31,7 @@ let ``State can be loaded from an event within a partition`` () =
   Haumohio.Storage.Memory.resetAllData()
   let container = store.container "TEST"
   let response = storeEvent container "test1" "test_user" (Data 42)
-  let empty = State<string, TestProjection>.empty
+  let empty = State<string, TestProjection>.empty 1
   let state = loadState "test1" container empty projector
   state.data.Keys |> Seq.toList |> should equalSeq ["42"]
   state.data.["42"].sum |> should equal 42
@@ -41,7 +41,7 @@ let ``State can be loaded from an event within a sub-partition`` () =
   Haumohio.Storage.Memory.resetAllData()
   let container = store.container "TEST"
   let response = storeEvent container "test1/sub1/sub2" "test_user" (Data 42)
-  let empty = State<string, TestProjection>.empty
+  let empty = State<string, TestProjection>.empty 1
   let state = loadState "" container empty projector
   state.data.Keys |> Seq.toList |> should equalSeq ["42"]
   state.data.["42"].sum |> should equal 42

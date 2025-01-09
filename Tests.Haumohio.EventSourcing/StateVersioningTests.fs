@@ -48,14 +48,14 @@ let ``Loading snapshot gets version``() =
 [<Fact>]
 let ``State uses snapshots that are the requested version``() =
   let container = start()
-  let state = loadState "TEST" container {TestState.empty with version = currentVersion} projector
+  let state = loadState "TEST" container (TestState.empty currentVersion) projector
   state.version |> should equal currentVersion
   state["42"].Value.sum |> should equal savedStateValue
 
 [<Fact>]
 let ``State ignores snapshots lower than requested version``() =
   let container = start()
-  let state = loadState "TEST" container {TestState.empty with version = currentVersion + 1} projector
+  let state = loadState "TEST" container (TestState.empty (currentVersion + 1)) projector
   state.version |> should equal (currentVersion + 1)
   state.data.Keys |> should haveCount 1
   state["99"].Value.sum |> should equal 99
@@ -63,14 +63,14 @@ let ``State ignores snapshots lower than requested version``() =
 [<Fact>]
 let ``Make State uses snapshots that are the requested version``() =
   let container = start()
-  let state = makeState "TEST" container SnapshotPolicy.EveryTime {TestState.empty with version = currentVersion} projector
+  let state = makeState "TEST" container SnapshotPolicy.EveryTime (TestState.empty currentVersion) projector
   state.version |> should equal currentVersion
   state["42"].Value.sum |> should equal savedStateValue
 
 [<Fact>]
 let ``Make State ignores snapshots lower than requested version``() =
   let container = start()
-  let state = makeState "TEST" container SnapshotPolicy.EveryTime {TestState.empty with version = currentVersion + 1} projector
+  let state = makeState "TEST" container SnapshotPolicy.EveryTime (TestState.empty (currentVersion + 1)) projector
   state.version |> should equal (currentVersion + 1)
   state.data.Keys |> should haveCount 1
   state["99"].Value.sum |> should equal 99

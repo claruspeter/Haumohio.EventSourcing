@@ -31,7 +31,7 @@ module Projection =
     at: DateTime
     version: int
   }with 
-    static member empty = { data = new Dictionary<'Key, 'Model>(); at = DateTime.MinValue; version=0}
+    static member empty version = { data = new Dictionary<'Key, 'Model>(); at = DateTime.MinValue; version=version}
     member this.Item with get (key:'Key) = 
       match this.data.TryGetValue key with 
       | true, x -> Some x
