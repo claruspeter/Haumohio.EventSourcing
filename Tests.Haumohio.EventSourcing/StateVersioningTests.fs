@@ -32,6 +32,7 @@ let ``State without version autocleans to version 0``() =
   let stateNull: TestState = {
     at = DateTime.UtcNow
     data = new Dictionary<string, TestProjection>()
+    metadata = new Dictionary<string,string>()
     version = Unchecked.defaultof<int>
   }
   let cleaned = stateNull :> IAutoClean<TestState> |> _.clean()

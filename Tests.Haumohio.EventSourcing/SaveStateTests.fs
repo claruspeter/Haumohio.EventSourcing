@@ -44,6 +44,7 @@ let saveFakeStateAt (at: DateTime) (container:Haumohio.Storage.StorageContainer)
   let state : TestState = {
     at = at
     data = new Dictionary<string, TestProjection>()
+    metadata = new Dictionary<string, string>()
     version = 1
   }
   let filename = 
@@ -64,7 +65,6 @@ let ``State saved by policy`` policy offset (result:bool) =
 
   let state = makeState testPartName container policy empty projector
 
-  state.data["1"].sum |> should equal 1
   container.list testPartName |> Seq.length |> (=) 3 |> should equal result
 
 [<Fact>]

@@ -28,10 +28,15 @@ module Projection =
 
   type State<'Key, 'Model when 'Key: equality and 'Model :> IHasKey<'Key> and 'Model :> IAutoClean<'Model> and 'Model: equality> = {
     data: IDictionary<'Key, 'Model>
+    metadata: IDictionary<string, string>
     at: DateTime
     version: int
   }with 
-    static member empty version = { data = new Dictionary<'Key, 'Model>(); at = DateTime.MinValue; version=version}
+    static member empty version = {
+      data = new Dictionary<'Key, 'Model>();
+      metadata = new Dictionary<string, string>();
+      at = DateTime.MinValue; version=version;
+    }
     member this.Item with get (key:'Key) = 
       match this.data.TryGetValue key with 
       | true, x -> Some x
@@ -69,6 +74,10 @@ module Projection =
     | false ->
       amend key updater state
 
+  let setMetaData key value state =
+    state.metadata[key] <- value
+    state
+
   let loadLatestSnapshot<'K, 'P when 'P :> IHasKey<'K> and 'P :> IAutoClean<'P> and 'P:equality and 'P :> IEmpty<'P>> (partition:string) (container:StorageContainer): State<'K,'P> option =
     match container.list(partition + "/" + typeof<'P>.Name) |> Seq.toList with 
     | [] -> 
@@ -100,12 +109,13 @@ module Projection =
 
   let loadAfter<'E> partition (container:StorageContainer) (after: DateTime) =
     let dtString = after |> EventStorage.dateString
-    let limit = $"event_{dtString}"
+    let limit = $"event_{dtString}_zzzzzzz"
+    TimeSnap.snap $"loading events after {limit}"
     container.filtered<'E> 
       partition
       (fun x -> 
         let fn = x.Split('/') |> Array.last
-        if fn.StartsWith("event") then 
+        if fn.StartsWith("event") then
           fn > limit
         else
           false
@@ -141,7 +151,7 @@ module Projection =
     |> function
         | Some true -> latest.Value
         | _ ->
-          let state = {data = [( single.Key, single )] |> dict; at= now; version=version }
+          let state = {data = [( single.Key, single )] |> dict; metadata=new Dictionary<string,string>(); at= now; version=version }
           saveState partition container state
 
   type SnapshotPolicy =
