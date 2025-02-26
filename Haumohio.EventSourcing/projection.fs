@@ -106,13 +106,14 @@ module Projection =
       (fun x -> 
         let fn = x.Split('/') |> Array.last
         if fn.StartsWith("event") then 
-          fn >= limit
+          fn > limit
         else
           false
       )
       
 
   let loadStateFrom partition (container:StorageContainer) (initial: State<'K,'S>) (projector: Projector<'K, 'S, 'E>) =
+    TimeSnap.snap $"Loaded state up to {initial.at}"
     let events = loadAfter partition container initial.at |> Seq.sortBy (fun (x: Event<'E>) -> x.at) |> Seq.toArray
     TimeSnap.snap $"loaded events ({events.Length})"
     let final = project projector events initial

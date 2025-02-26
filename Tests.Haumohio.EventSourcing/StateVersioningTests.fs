@@ -10,7 +10,6 @@ open Haumohio.EventSourcing.EventStorage
 open System.Collections.Generic
 open TestCommon
 
-let store = Haumohio.Storage.Ephemeral.EphemeralStore()
 let testPartName = "save_state_test"
 let now = DateTime.UtcNow
 let currentVersion = 3
@@ -20,7 +19,7 @@ let setTime at =
   Haumohio.Storage.Internal.UtcNow <- fun () -> at
 
 let start() =
-  let store = Haumohio.Storage.Ephemeral.EphemeralStore()
+  let store = Haumohio.Storage.Ephemeral.EphemeralStore Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance
   let container = store.container (Guid.NewGuid().ToString())
   setTime (now.AddDays -1)
   storeEvent container "TEST" "Fred" (Data 99) |> ignore
