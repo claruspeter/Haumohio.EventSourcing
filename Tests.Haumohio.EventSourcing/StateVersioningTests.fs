@@ -4,6 +4,7 @@ open System
 open Xunit
 open FsUnit.Xunit
 open FsUnit.Common
+open Haumohio.Storage
 open Haumohio.EventSourcing
 open Haumohio.EventSourcing.Projection
 open Haumohio.EventSourcing.EventStorage
@@ -15,17 +16,17 @@ let now = DateTime.UtcNow
 let currentVersion = 3
 let savedStateValue = 42
 
-let setTime at =
-  Haumohio.Storage.Internal.UtcNow <- fun () -> at
+let setTime (container: StorageContainer) at =
+  {container with timeProvider = fun () -> at}
 
 let start() =
-  let store = Haumohio.Storage.Ephemeral.EphemeralStore Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance
+  let store = Haumohio.Storage.Ephemeral.EphemeralStore Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance Haumohio.Storage.Store.StandardUtcProvider
   let container = store.container (Guid.NewGuid().ToString())
-  setTime (now.AddDays -1)
-  storeEvent container "TEST" "Fred" (Data 99) |> ignore
-  setTime (now.AddMinutes -1)
-  let savedState = saveSingleState "TEST" container {id="42"; sum=savedStateValue; stuff=[]} currentVersion
-  container
+  let yesterday = setTime container (now.AddDays -1)
+  storeEvent yesterday "TEST" "Fred" (Data 99) |> ignore
+  let lastMinute = setTime yesterday (now.AddMinutes -1)
+  let savedState = saveSingleState "TEST" lastMinute {id="42"; sum=savedStateValue; stuff=[]} currentVersion
+  lastMinute
 
 [<Fact>]
 let ``State without version autocleans to version 0``() =

@@ -57,8 +57,7 @@ let saveFakeStateAt (at: DateTime) (container:Haumohio.Storage.StorageContainer)
 [<MemberData(nameof(SavePolicyData))>]
 let ``State saved by policy`` policy offset (result:bool) =
   Haumohio.Storage.Memory.resetAllData()
-  Haumohio.Storage.Internal.UtcNow <- fun () -> now
-  let container = store.container "TEST"
+  let container = {(store.container "TEST") with timeProvider = fun () -> now}
   let prevDate = (now.AddDays(-offset))
   let previous = saveFakeStateAt prevDate container testPartName
   storeEvent container testPartName "test_user" (Data 1) |> ignore

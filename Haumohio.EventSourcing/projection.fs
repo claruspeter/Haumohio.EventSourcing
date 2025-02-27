@@ -116,7 +116,7 @@ module Projection =
       (fun x -> 
         let fn = x.Split('/') |> Array.last
         if fn.StartsWith("event") then
-          fn > limit
+          fn >= limit
         else
           false
       )
@@ -140,11 +140,11 @@ module Projection =
     let filename = 
       sprintf "%s_%s"
         (typeof<'S>.Name)
-        (Haumohio.Storage.Internal.UtcNow() |> EventStorage.dateString)
+        (container.timeProvider() |> EventStorage.dateString)
     container.save $"{partition}/{filename}" state :?> _
 
   let saveSingleState<'K, 'S when 'S :> IHasKey<'K> and 'S :> IAutoClean<'S> and 'S: equality and 'S :> IEmpty<'S>> (partition:string) (container:StorageContainer) (single: 'S) version =
-    let now = Storage.Internal.UtcNow()
+    let now = container.timeProvider()
     let latest = loadLatestSnapshot partition container
     latest
     |> Option.map (fun x -> x.[single.Key] = Some single )

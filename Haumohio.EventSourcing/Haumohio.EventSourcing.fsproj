@@ -7,7 +7,7 @@
   <PropertyGroup>
     <PackAsTool>false</PackAsTool>
     <PackageId>Haumohio.EventSourcing</PackageId>
-    <Version>2.2.6</Version>
+    <Version>2.2.8</Version>
     <Authors>Peter Bayne,Haumohio</Authors>
     <Title>Haumohio Event Sourcing</Title>
     <Description>A library for commands, events, and projections of those events into state</Description>
@@ -29,7 +29,7 @@
 
   <ItemGroup>
     <PackageReference Include="Haumohio.Common" Version="1.0.2" />
-    <PackageReference Include="Haumohio.Storage" Version="2.0.13" />
+    <PackageReference Include="Haumohio.Storage" Version="2.0.15" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="7.0.0" />
   </ItemGroup>
 
