@@ -4,13 +4,12 @@ open System
 open Xunit
 open FsUnit.Xunit
 open FsUnit.Common
+open Haumohio.Storage
 open Haumohio.EventSourcing
 open Haumohio.EventSourcing.Projection
 open Haumohio.EventSourcing.EventStorage
 open System.Collections.Generic
 open TestCommon
-
-let store = Haumohio.Storage.Memory.MemoryStore
 
 let testPartName = "save_state_test"
 
@@ -40,6 +39,9 @@ let SavePolicyData : obj[] list =[
   [|Weekly; 30; true |]  
 ]
 
+let newStore() = Ephemeral.EphemeralStore Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance Store.StandardUtcProvider
+
+
 let saveFakeStateAt (at: DateTime) (container:Haumohio.Storage.StorageContainer) (partition:string) : TestState =
   let state : TestState = {
     at = at
@@ -56,7 +58,7 @@ let saveFakeStateAt (at: DateTime) (container:Haumohio.Storage.StorageContainer)
 [<Theory>]
 [<MemberData(nameof(SavePolicyData))>]
 let ``State saved by policy`` policy offset (result:bool) =
-  Haumohio.Storage.Memory.resetAllData()
+  let store = newStore()
   let container = {(store.container "TEST") with timeProvider = fun () -> now}
   let prevDate = (now.AddDays(-offset))
   let previous = saveFakeStateAt prevDate container testPartName
