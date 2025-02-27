@@ -109,7 +109,7 @@ module Projection =
 
   let loadAfter<'E> partition (container:StorageContainer) (after: DateTime) =
     let dtString = after |> EventStorage.dateString
-    let limit = $"event_{dtString}_zzzzzzz"
+    let limit = $"event_{dtString}"
     TimeSnap.snap $"loading events after {limit}"
     container.filtered<'E> 
       partition
