@@ -3,11 +3,10 @@ module SaveStateTests
 open System
 open Xunit
 open FsUnit.Xunit
-open FsUnit.Common
-open Haumohio.Storage
 open Haumohio.EventSourcing
 open Haumohio.EventSourcing.Projection
 open Haumohio.EventSourcing.EventStorage
+open Haumohio.EventSourcing.ProjectionStorage
 open System.Collections.Generic
 open TestCommon
 
@@ -39,10 +38,8 @@ let SavePolicyData : obj[] list =[
   [|Weekly; 30; true |]  
 ]
 
-let newStore() = Ephemeral.EphemeralStore Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance Store.StandardUtcProvider
 
-
-let saveFakeStateAt (at: DateTime) (container:Haumohio.Storage.StorageContainer) (partition:string) : TestState =
+let saveFakeStateAt (at: DateTime) (store: StateStore<string, TestProjection>) (partition:string) : TestState =
   let state : TestState = {
     at = at
     data = new Dictionary<string, TestProjection>()
@@ -53,20 +50,18 @@ let saveFakeStateAt (at: DateTime) (container:Haumohio.Storage.StorageContainer)
       sprintf "%s_%s"
         (typeof<TestProjection>.Name)
         (at |> EventStorage.dateString)
-  container.save $"{partition}/{filename}" state :?> _
+  store.save $"{partition}/{filename}" state
 
 [<Theory>]
 [<MemberData(nameof(SavePolicyData))>]
 let ``State saved by policy`` policy offset (result:bool) =
-  let store = newStore()
-  let container = {(store.container "TEST") with timeProvider = fun () -> now}
+  let events = {EphemeralEventStore() with timeProvider = fun () -> now}
+  let states = {EphemeralStateStore() with timeProvider = fun () -> now}
   let prevDate = (now.AddDays(-offset))
-  let previous = saveFakeStateAt prevDate container testPartName
-  storeEvent container testPartName "test_user" (Data 1) |> ignore
-
-  let state = makeState testPartName container policy empty projector
-
-  container.list testPartName |> Seq.length |> (=) 3 |> should equal result
+  let previous = saveFakeStateAt prevDate states testPartName
+  storeEvent events testPartName "test_user" (Data 1) |> ignore
+  let state = makeState testPartName states events policy empty projector
+  states.list testPartName |> Seq.length |> (=) 3 |> should equal result
 
 [<Fact>]
 let ``State can auto clean``() =

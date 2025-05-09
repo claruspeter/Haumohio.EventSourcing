@@ -4,10 +4,12 @@ open System
 module Domain =
   open System.Text.RegularExpressions
   open HashidsNet
+  open Haumohio.Storage
   open Haumohio.EventSourcing
   open Haumohio.EventSourcing.Projection
   open Haumohio.EventSourcing.EventStorage
-  open Haumohio.Storage.Memory
+  open Haumohio.EventSourcing.ProjectionStorage
+
 
 
   let private hasher salt=
@@ -45,7 +47,24 @@ module Domain =
 
   let private empty = State<string, Person>.empty 1
 
-  let private container clientId = MemoryStore.container clientId
+  let private container clientId = Memory.MemoryStore.container clientId
+
+  let private Events (container:StorageContainer) : EventStore<'E> = 
+    {
+      logger = Memory.MemoryStore.logger
+      timeProvider = Memory.MemoryStore.timeProvider
+      save = fun name value -> container.save name (box value) :?> _
+      load = container.filtered
+      list = container.list
+    }
+  let private States (container:StorageContainer) : StateStore<'K, 'P> = 
+    {
+      logger = Memory.MemoryStore.logger
+      timeProvider = Memory.MemoryStore.timeProvider
+      save = fun name value -> container.save name (box value) :?> _
+      load = container.loadAs<State<'K, 'P>>
+      list = container.list
+    }
 
   let projector (state: State<string,Person>) event =
     match event.details with 
@@ -59,19 +78,22 @@ module Domain =
     state
 
   let people clientId  =
-    let loader = clientId |> container |> loadState "people"
+    let c = clientId |> container 
+    let states = c |> States
+    let events = c |> Events
+    let loader = loadState "people" states events
     loader empty projector
     |> fun x -> x.data.Values
 
   let addPerson clientId userName personalName familyName =
-    let c = clientId |> container
+    let c = clientId |> container |> Events
     let eventDetail = {| id=calcId "P" clientId; personalName=personalName; familyName=familyName |}
     eventDetail
     |> PersonAdded
     |> storeEvent  c "people" userName 
 
   let assignRole clientId userName personId rolename =
-    let c = clientId |> container
+    let c = clientId |> container |> Events
     let eventDetail = {| personId = personId; roleName = rolename |}
     eventDetail
     |> RoleAssigned
