@@ -112,7 +112,7 @@ module Projection =
     let limit = $"event_{dtString}"
     TimeSnap.snap $"loading events after {limit}"
     container.filtered<'E> 
-      partition
+      (if String.IsNullOrWhiteSpace(partition) then "" else partition + "/")
       (fun x -> 
         let fn = x.Split('/') |> Array.last
         if fn.StartsWith("event") then
