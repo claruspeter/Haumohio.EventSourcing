@@ -84,7 +84,7 @@ module Projection =
       None
     | xx -> 
       let mostRecent = xx |> Seq.last 
-      sprintf "Loading snapshot from %s" mostRecent |> container.logger.LogDebug
+      sprintf "Loading snapshot %s from %s" (typeof<'P>.Name) mostRecent |> container.logger.LogDebug
       let state =
         mostRecent 
         |> container.loadAs<State<'K,'P>>
@@ -123,15 +123,15 @@ module Projection =
       
 
   let loadStateFrom partition (container:StorageContainer) (initial: State<'K,'S>) (projector: Projector<'K, 'S, 'E>) =
-    TimeSnap.snap $"Loaded state up to {initial.at}"
+    TimeSnap.snap $"Loaded state {partition} up to {initial.at}"
     let events = loadAfter partition container initial.at |> Seq.sortBy (fun (x: Event<'E>) -> x.at) |> Seq.toArray
     TimeSnap.snap $"loaded events ({events.Length})"
     let final = project projector events initial
-    TimeSnap.snap "projected state"
+    TimeSnap.snap $"projected state {partition}"
     final
 
   let loadState partition (container:StorageContainer) (emptyState: State<'K,'S>) (projector: Projector<'K, 'S, 'E>) =
-    TimeSnap.snap "loadState()"
+    TimeSnap.snap $"loadState({partition})"
     let initial =loadVersionedSnapshot partition container emptyState
     TimeSnap.snap $"loaded snapshot at {initial.at}"
     loadStateFrom partition container initial projector
@@ -167,6 +167,7 @@ module Projection =
       (emptyState: State<'K,'S>) 
       (projector: Projector<'K, 'S, 'E>) =
 
+    TimeSnap.snap $"Make State at {partition}"
     let initial = loadVersionedSnapshot partition container emptyState
     let state = loadStateFrom partition container initial projector
     match policy, state.at - initial.at with 
