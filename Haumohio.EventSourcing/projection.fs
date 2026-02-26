@@ -116,7 +116,7 @@ module Projection =
       (fun x -> 
         let fn = x.Split('/') |> Array.last
         if fn.StartsWith("event") then
-          fn >= limit
+          fn > limit
         else
           false
       )
