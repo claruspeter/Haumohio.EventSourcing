@@ -29,18 +29,27 @@ module EventStorage =
         parts[1] + " " + parts[2]
         |> DateTime.Parse
     | _ -> DateTime.MinValue
+
+  type EventSourcingContainer<'D when 'D: enum<int>> = {
+    events: StorageContainer
+    projections: StorageContainer
+  }with 
+    member this.timeProvider = this.events.timeProvider
+    member this.logger = this.events.logger
+    member this.save = this.events.save
   
-  let storeEvent<'Tevent when 'Tevent:> IHasDescription> (c:StorageContainer) partition userName (eventDetail:'Tevent) =
+  let storeEvent<'E, 'D when 'E:> IHasDescription and 'D: enum<int>> (c:EventSourcingContainer<'D>) (domain:'D) userName (eventDetail:'E) =
     let event = { at = c.timeProvider(); by = userName; details = eventDetail }
     let dtString = event.at |> dateString
     let evtName = eventDetail |> DUName
+    let partition = domain.ToString().ToLowerInvariant()
     let filename = $"{partition}/event_{dtString}_{evtName}"
     c.logger.LogDebug $"storing {filename}"
     c.save filename event
-    :?> Event<'Tevent>
+    :?> Event<'E>
     |> fun x -> { at = x.at; by = x.by; action = evtName; category=partition; description = eventDetail.description}
 
-  let storeEvents<'Tevent when 'Tevent:> IHasDescription> (c:StorageContainer) partition userName (eventDetail:'Tevent seq) =
+  let storeEvents<'E, 'D when 'E:> IHasDescription and 'D: enum<int>> (c:EventSourcingContainer<'D>) (domain:'D) userName (eventDetail:'E seq) =
     eventDetail
-    |> Seq.map (storeEvent c partition userName)
+    |> Seq.map (storeEvent c domain userName)
     |> Seq.reduce ( fun acc i -> {acc with action = $"{acc.action}, {i.action}"; description = $"{acc.description},\r\n{i.description}" })

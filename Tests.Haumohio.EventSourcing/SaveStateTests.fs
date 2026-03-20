@@ -11,7 +11,12 @@ open Haumohio.EventSourcing.EventStorage
 open System.Collections.Generic
 open TestCommon
 
-let testPartName = "save_state_test"
+type TestDomains = | Save_State_Test = 1
+let EventStore c = 
+    {
+      events=c
+      projections=c
+    }
 
 let now = DateTime.UtcNow
 
@@ -59,10 +64,10 @@ let saveFakeStateAt (at: DateTime) (container:Haumohio.Storage.StorageContainer)
 [<MemberData(nameof(SavePolicyData))>]
 let ``State saved by policy`` policy offset (result:bool) =
   let store = newStore()
-  let container = {(store.container "TEST") with timeProvider = fun () -> now}
+  let container = {(store.container "TEST") with timeProvider = fun () -> now} |> EventStore
   let prevDate = (now.AddDays(-offset))
   let previous = saveFakeStateAt prevDate container testPartName
-  storeEvent container testPartName "test_user" (Data 1) |> ignore
+  storeEvent container TestDomains.Save_State_Test "test_user" (Data 1) |> ignore
 
   let state = makeState testPartName container policy empty projector
 

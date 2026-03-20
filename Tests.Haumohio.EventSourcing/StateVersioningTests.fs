@@ -11,19 +11,27 @@ open Haumohio.EventSourcing.EventStorage
 open System.Collections.Generic
 open TestCommon
 
-let testPartName = "save_state_test"
+type TestDomains = 
+  | Save_State_Test = 1
+  | Test = 2
+let EventStore c = 
+    {
+      events=c
+      projections=c
+    }
+
 let now = DateTime.UtcNow
 let currentVersion = 3
 let savedStateValue = 42
 
-let setTime (container: StorageContainer) at =
-  {container with timeProvider = fun () -> at}
+let setTime (container) at =
+  {container with events = {container.events with timeProvider = fun () -> at}}
 
 let start() =
   let store = Haumohio.Storage.Ephemeral.EphemeralStore Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance Haumohio.Storage.Store.StandardUtcProvider
-  let container = store.container (Guid.NewGuid().ToString())
+  let container = store.container (Guid.NewGuid().ToString()) |> EventStore
   let yesterday = setTime container (now.AddDays -1)
-  storeEvent yesterday "TEST" "Fred" (Data 99) |> ignore
+  storeEvent yesterday TestDomains.Test "Fred" (Data 99) |> ignore
   let lastMinute = setTime yesterday (now.AddMinutes -1)
   let savedState = saveSingleState "TEST" lastMinute {id="42"; sum=savedStateValue; stuff=[]} currentVersion
   lastMinute

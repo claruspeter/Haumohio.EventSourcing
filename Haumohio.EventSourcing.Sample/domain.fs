@@ -58,21 +58,30 @@ module Domain =
           state.data.[x.personId] <- updated 
     state
 
+  type SampleDomains = 
+    | People = 1
+
+  let EventStore c = 
+    {
+      events=c
+      projections=c
+    }
+
   let people clientId  =
     let loader = clientId |> container |> loadState "people"
     loader empty projector
     |> fun x -> x.data.Values
 
   let addPerson clientId userName personalName familyName =
-    let c = clientId |> container
+    let c = clientId |> container |> EventStore
     let eventDetail = {| id=calcId "P" clientId; personalName=personalName; familyName=familyName |}
     eventDetail
     |> PersonAdded
-    |> storeEvent  c "people" userName 
+    |> storeEvent  c SampleDomains.People userName 
 
-  let assignRole clientId userName personId rolename =
-    let c = clientId |> container
-    let eventDetail = {| personId = personId; roleName = rolename |}
+  let assignRole clientId userName personId roleName =
+    let c = clientId |> container |> EventStore
+    let eventDetail = {| personId = personId; roleName = roleName |}
     eventDetail
     |> RoleAssigned
-    |> storeEvent c "people" userName 
+    |> storeEvent c SampleDomains.People userName 

@@ -50,6 +50,11 @@ module Projection =
 
   type Projector<'K, 'S, 'E when 'K: equality and 'S :> IHasKey<'K> and 'S :> IAutoClean<'S> and 'S: equality> = State<'K,'S> -> Event<'E> -> State<'K,'S>
 
+module EventProjection =
+  open Haumohio.Storage
+  open Haumohio
+  open Projection
+
   let project (projector: Projector<'K, 'S, 'E>) (events: Event<'E> seq)  (initialState:State<'K,'S>) =
     let final = Seq.fold projector initialState events
     if events |> Seq.isEmpty  then 
