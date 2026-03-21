@@ -15,6 +15,16 @@ with
       | Data amt -> $"DATA:{amt}"
       | Other s -> $"OTHER:{s}"
 
+type TestDomain = 
+    | Test1 = 1
+    | Flo = 2
+
+let EventStore c = 
+  {
+    eventContainer=c
+    projectionContainer=c
+  }
+
 type TestProjection = {
   id: string
   sum: int
@@ -34,9 +44,7 @@ type TestState = Projection.State<string, TestProjection>
 
 let projector (state: TestState) (ev: Event<TestEvents>) =
   match ev.details with 
-  | Data x -> 
-    state.data.Add(KeyValuePair(x.ToString(), {id=x.ToString(); sum=x; stuff=[]}))
-    state
+  | Data x -> addOrAmend (x.ToString()) (fun p -> {p with id=x.ToString(); sum=p.sum + x; stuff=[]}) state
   | _ -> state // do nothing 
 
-let empty = State<string, TestProjection>.empty 1
+let empty = State<string, TestProjection>.empty
