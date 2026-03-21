@@ -22,7 +22,7 @@ type TestDomain =
 let EventStore c = 
   {
     eventContainer=c
-    projectionContainer=c
+    stateContainer=c
   }
 
 type TestProjection = {

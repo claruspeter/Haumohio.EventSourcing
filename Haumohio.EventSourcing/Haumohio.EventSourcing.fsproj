@@ -23,6 +23,7 @@
     <Compile Include="Library.fs" />
     <Compile Include="storage.fs" />
     <Compile Include="projection.fs" />
+    <Compile Include="state.fs" />
     <None Include="..\LICENCE.txt" Pack="true" PackagePath="" />
     <None Include="README.md" Pack="true" PackagePath="" />
   </ItemGroup>

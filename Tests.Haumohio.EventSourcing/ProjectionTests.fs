@@ -27,7 +27,7 @@ type TestDomain =
 let EventStore c = 
   {
     eventContainer=c
-    projectionContainer=c
+    stateContainer=c
   }
 
 [<Fact>]
@@ -37,7 +37,7 @@ let ``Event can be projected`` () =
   let container = store.container "TEST" |> EventStore
   let _ = storeEvent container TestDomain.Test1 "test_user" (Data 42)
   //Act
-  let projection = project projector TestDomain.Test1 container
+  let projection = project projector TestDomain.Test1 TestState.empty container
   //Assert
   projection.data.Count |> should equal 1
   projection.["42"] |> should equal (Some {id="42"; sum=42; stuff=[]})
@@ -55,7 +55,7 @@ let ``Event can be projected for a certain day`` () =
   let c3 = setTime c2 (_now().AddDays(0))
   let _ = storeEvent c3 TestDomain.Test1 "test_user" (Data 3)
   //Act
-  let projection = projectForDay projector TestDomain.Test1 (_now().AddDays(-1) |> DateOnly.FromDateTime) container
+  let projection = projectForDay projector TestDomain.Test1 (_now().AddDays(-1) |> DateOnly.FromDateTime) TestState.empty container
   //Assert
   projection.data.Count |> should equal 1
   projection.["1"] |> should equal None

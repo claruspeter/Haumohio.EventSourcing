@@ -12,6 +12,7 @@
     <Compile Include="common.fs" />
     <Compile Include="EventStorageTests.fs" />
     <Compile Include="ProjectionTests.fs" />
+    <Compile Include="StateStorageTests.fs" />
     <!-- <Compile Include="Tests.fs" />
     <Compile Include="SaveStateTests.fs" />
     <Compile Include="StateVersioningTests.fs" /> -->
