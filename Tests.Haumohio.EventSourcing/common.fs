@@ -27,13 +27,13 @@ let EventStore c =
 
 type TestProjection = {
   id: string
-  sum: int
+  cnt: int
   stuff: int list
 }with
   interface IHasKey<string> with 
     member this.Key = this.id
   interface IEmpty<TestProjection> with 
-    static member empty = {id=""; sum=0; stuff = []}
+    static member empty = {id=""; cnt=0; stuff = []}
   interface IAutoClean<TestProjection> with 
     member this.clean() = 
       {this with 
@@ -44,7 +44,7 @@ type TestState = Projection.State<string, TestProjection>
 
 let projector (state: TestState) (ev: Event<TestEvents>) =
   match ev.details with 
-  | Data x -> addOrAmend (x.ToString()) (fun p -> {p with id=x.ToString(); sum=p.sum + x; stuff=[]}) state
+  | Data x -> addOrAmend (x.ToString()) (fun p -> {p with id=x.ToString(); cnt=p.cnt + 1; stuff=[]}) state
   | _ -> state // do nothing 
 
 let empty = State<string, TestProjection>.empty

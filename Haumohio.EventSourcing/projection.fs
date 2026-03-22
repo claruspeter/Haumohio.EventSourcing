@@ -14,6 +14,7 @@ type IAutoClean<'a> =
 module Projection =
   open Haumohio.Storage
   open Haumohio
+  open EventStorage
 
   let inline unNull defaultValue value =
     match value |> box with 
@@ -71,7 +72,7 @@ module Projection =
 
   let projectForDay (projector: Projector<'K, 'S, 'E>) (domain:'D) (day: DateOnly) initialState (container: EventStorage.EventSourcingContainer<'D>) =
     let events = 
-      sprintf "%s/%s" (domain.ToString().ToLowerInvariant()) (day.ToString("yyyyMMdd"))
+      sprintf "%s/event/%s" (domain.ToString().ToLowerInvariant()) (day |> dateOnlyString)
       |> container.eventContainer.all<Event<'E>>
     projectEvents projector events initialState
 

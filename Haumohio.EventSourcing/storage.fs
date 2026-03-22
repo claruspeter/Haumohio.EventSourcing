@@ -21,11 +21,17 @@ module EventStorage =
   type IHasDescription = 
     abstract member description: string
 
+  let dateOnlyString (dt:DateOnly) = 
+    dt.ToString("yyyy-MM-dd")
+
   let dateString (dt:DateTime) = 
-    dt.ToString("yyyyMMdd")
+    dt.ToString("yyyy-MM-dd")
 
   let timeString (dt:DateTime) = 
     dt.ToString("HH-mm-ss.fff")
+
+  let datetimeString dt =
+    sprintf "%s_%s" (dateString dt) (timeString dt)
 
   let eventDate (filename: string) = 
     match filename.Split( [|'_'|], StringSplitOptions.RemoveEmptyEntries) with 
@@ -45,9 +51,8 @@ module EventStorage =
     let event = { at = c.timeProvider(); by = userName; details = eventDetail }
     let category = domain.ToString().ToLowerInvariant()
     let evtName = eventDetail |> DUName
-    let partition = sprintf "%s/%s" category (event.at |> dateString)
-    let filename = sprintf "%s/event_%s_%s.json" partition (event.at |> timeString) evtName
-    c.logger.LogWarning $"storing {filename}"
+    let filename = sprintf "%s/event/%s_%s.json" category (event.at |> datetimeString) evtName
+    c.logger.LogDebug $"storing {filename}"
     c.eventContainer.save filename event
     :?> Event<'E>
     |> fun x -> { at = x.at; by = x.by; action = evtName; category=category; description = eventDetail.description}
@@ -58,8 +63,8 @@ module EventStorage =
     |> Seq.reduce ( fun acc i -> {acc with action = $"{acc.action}, {i.action}"; description = $"{acc.description},\r\n{i.description}" })
 
   let list (domain: 'D) (day:DateOnly) (container: EventSourcingContainer<'D>) =
-    let folder = sprintf "%s/%s/" (domain.ToString().ToLowerInvariant()) (day.ToString "yyyyMMdd") 
-    folder
+    let prefix = sprintf "%s/event/%s" (domain.ToString().ToLowerInvariant()) (dateOnlyString day) 
+    prefix
     |> container.eventContainer.list 
     |> Seq.map Path.GetFileNameWithoutExtension
     |> Seq.toList

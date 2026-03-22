@@ -9,7 +9,7 @@ open Haumohio.EventSourcing.EventStorage
 open TestCommon
 
 
-let _now = fun () -> DateTime(2006, 6,5,4,3,2,1)
+let _now = fun () -> DateTime(2007, 6,5,4,3,2,1)
 let _today = _now() |> DateOnly.FromDateTime
 
 let _logger = LoggerFactory.Create(fun builder -> builder.AddConsole() |> ignore).CreateLogger("EventStorageTests")
@@ -20,17 +20,17 @@ let setTime container at =
   {container with eventContainer = {container.eventContainer with timeProvider = fun () -> at}}
 
 [<Fact>]
-let ``Event is stored under DOMAIN/DAY/event`` () =
+let ``Event is stored under DOMAIN/event/[event]`` () =
   //Arrange
   let store = newStore()
   let container = store.container "TEST" |> EventStore
   //Act
   let response = storeEvent container TestDomain.Test1 "test_user" (Data 42)
   //Assert
-  container.eventContainer.list "" |> Seq.toList |> should equal ["test1/20060605/event_04-03-02.001_Data.json"]
+  container.eventContainer.list "" |> Seq.toList |> should equal ["test1/event/2007-06-05_04-03-02.001_Data.json"]
   container.eventContainer.part "" |> Seq.toList |> should equal ["test1"]
-  container.eventContainer.part "test1/" |> Seq.toList |> should equal ["20060605"]
-  container.eventContainer.list "test1/20060605" |> Seq.toList |> should equal ["test1/20060605/event_04-03-02.001_Data.json"]
+  container.eventContainer.part "test1/" |> Seq.toList |> should equal ["event"]
+  container.eventContainer.list "test1/event" |> Seq.toList |> should equal ["test1/event/2007-06-05_04-03-02.001_Data.json"]
 
 [<Fact>]
 let ``Events can be retrieved by day for a domain`` () =
@@ -48,4 +48,4 @@ let ``Events can be retrieved by day for a domain`` () =
   //Act
   let events = EventStorage.list TestDomain.Test1 _today c3
   //Assert
-  events |> should equal ["event_04-03-02.001_Data"; "event_05-03-02.001_Data"]
+  events |> should equal ["2007-06-05_04-03-02.001_Data"; "2007-06-05_05-03-02.001_Data"]

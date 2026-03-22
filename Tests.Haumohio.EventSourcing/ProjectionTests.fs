@@ -40,7 +40,7 @@ let ``Event can be projected`` () =
   let projection = project projector TestDomain.Test1 TestState.empty container
   //Assert
   projection.data.Count |> should equal 1
-  projection.["42"] |> should equal (Some {id="42"; sum=42; stuff=[]})
+  projection.["42"] |> should equal (Some {id="42"; cnt=1; stuff=[]})
 
 
 [<Fact>]
@@ -59,5 +59,5 @@ let ``Event can be projected for a certain day`` () =
   //Assert
   projection.data.Count |> should equal 1
   projection.["1"] |> should equal None
-  projection.["2"] |> should equal (Some {id="2"; sum=2; stuff=[]})
+  projection.["2"] |> should equal (Some {id="2"; cnt=1; stuff=[]})
   projection.["3"] |> should equal None
