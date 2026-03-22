@@ -15,6 +15,7 @@ module Projection =
   open Haumohio.Storage
   open Haumohio
   open EventStorage
+  open System.Collections.Immutable
 
   let inline unNull defaultValue value =
     match value |> box with 
@@ -33,13 +34,13 @@ module Projection =
       and 'Model :> IAutoClean<'Model> 
       and 'Model: equality
       > = {
-    data: IDictionary<'Key, 'Model>
+    data: IImmutableDictionary<'Key, 'Model>
     metadata: IDictionary<string, string>
     at: DateTime
     version: int
   }with 
     static member empty = {
-      data = new Dictionary<'Key, 'Model>();
+      data = ImmutableDictionary<'Key, 'Model>.Empty;
       metadata = new Dictionary<string, string>();
       at = DateTime.MinValue; version=1;
     }
@@ -82,8 +83,7 @@ module Projection =
   let amend<'K, 'P when 'P :> IHasKey<'K> and 'P :> IAutoClean<'P> and 'P:equality> (key: 'K) (updater: 'P -> 'P) (state: State<'K, 'P>) =
     match state.data.ContainsKey key with 
     | true ->
-        state.data.[key] <- state.data.[key] |> updater
-        state
+        {state with data=state.data.SetItem(key,  state.data.[key] |> updater)}
     | false -> 
       printfn "Can't Amend - key not found %A" key
       state
@@ -91,8 +91,7 @@ module Projection =
   let addOrAmend<'K, 'P when 'P :> IHasKey<'K> and 'P :> IAutoClean<'P> and 'P:equality and 'P :> IEmpty<'P>> key (updater: 'P -> 'P) (state: State<'K, 'P>) =
     match key |> state.data.ContainsKey |> not with
     | true ->
-        state.data.[key] <- 'P.empty |> updater
-        state
+        {state with data=state.data.Add(key, 'P.empty |> updater)}
     | false ->
       amend key updater state
 

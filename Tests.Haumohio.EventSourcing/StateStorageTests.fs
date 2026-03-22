@@ -138,7 +138,9 @@ let ``State is calculated for each day leading up to today`` () =
   //Act
   let _ = StateStorage.makeState TestDomain.Test1 projector cToday
   //Assert
-  let s05 = cToday.stateContainer.loadAs<TestState> "test1/TestProjection/2006-05-31.json"
-  s05.Value.["42"].Value |> should equal {id="42"; cnt=2; stuff=[]}
-  let s10 = cToday.stateContainer.loadAs<TestState> "test1/TestProjection/2006-05-26.json"
-  s10.Value.["42"].Value |> should equal {id="42"; cnt=1; stuff=[]}
+  cToday.stateContainer.list "test1" 
+  |> Seq.toList
+  |> Seq.map (cToday.stateContainer.loadAs<TestState> >> _.Value.["42"].Value)
+  |> Seq.map _.cnt
+  |> Seq.toList
+  |> should equal [1; 1; 1; 1; 1; 2; 2; 2; 2; 2]
