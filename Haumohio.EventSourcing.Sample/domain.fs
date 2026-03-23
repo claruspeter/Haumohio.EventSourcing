@@ -3,19 +3,20 @@ open System
 
 module Domain =
   open System.Text.RegularExpressions
+  open Microsoft.Extensions.Logging
   open HashidsNet
   open Haumohio.EventSourcing
   open Haumohio.EventSourcing.Projection
   open Haumohio.EventSourcing.EventStorage
-  open Haumohio.Storage.Memory
+  open Haumohio.Storage
 
 
   let private hasher salt=
     new Hashids(salt, minHashLength=8, alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ23456789")
 
-  let calcId prefix clientid=
+  let calcId prefix clientId=
     let result = 
-      hasher(clientid).Encode(DateTime.UtcNow.Ticks / 1000L |> int)
+      hasher(clientId).Encode(DateTime.UtcNow.Ticks / 10000L |> int)
       |> fun x -> Regex.Replace(x, ".{4}", "$0-")
       |> fun x -> x.Remove( x.Length - 1)
     prefix + "-" + result 
@@ -43,45 +44,40 @@ module Domain =
     interface IAutoClean<Person> with 
       member this.clean (): Person = this
 
-  let private empty = State<string, Person>.empty 1
+  let private empty = State<string, Person>.empty
 
-  let private container clientId = MemoryStore.container clientId
+  let EventStore c = 
+    {
+      eventContainer=c
+      stateContainer=c
+    }
+  
+  let store = Memory.MemoryStore
+  // let store = Files.FileStore Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance (Some "/home/peter/Projects/misc/Haumohio.EventSourcingV2/__data_files__")
+  let private container clientId = store.container  clientId |> EventStore
 
   let projector (state: State<string,Person>) event =
     match event.details with 
-    | PersonAdded x -> state.data.Add(x.id, {Person.id = x.id; personalName = x.personalName; familyName = x.familyName; roles = set [] })
-    | RoleAssigned x -> 
-        match state.[x.personId] with 
-        | None -> ()
-        | Some person ->
-          let updated = {person with roles = person.roles |> Set.add x.roleName }
-          state.data.[x.personId] <- updated 
-    state
+    | PersonAdded x -> addOrAmend x.id (fun person -> {person with id = x.id; personalName = x.personalName; familyName = x.familyName; roles = set [] }) state
+    | RoleAssigned x -> amend x.personId (fun person -> {person with roles = person.roles |> Set.add x.roleName }) state
 
   type SampleDomains = 
     | People = 1
 
-  let EventStore c = 
-    {
-      events=c
-      projections=c
-    }
 
   let people clientId  =
-    let loader = clientId |> container |> loadState "people"
-    loader empty projector
+    let c = clientId |> container 
+    StateStorage.makeState SampleDomains.People projector c
     |> fun x -> x.data.Values
 
   let addPerson clientId userName personalName familyName =
-    let c = clientId |> container |> EventStore
+    let c = clientId |> container
     let eventDetail = {| id=calcId "P" clientId; personalName=personalName; familyName=familyName |}
     eventDetail
     |> PersonAdded
     |> storeEvent  c SampleDomains.People userName 
 
   let assignRole clientId userName personId roleName =
-    let c = clientId |> container |> EventStore
-    let eventDetail = {| personId = personId; roleName = roleName |}
-    eventDetail
-    |> RoleAssigned
+    let c = clientId |> container
+    RoleAssigned {| personId = personId; roleName = roleName |}
     |> storeEvent c SampleDomains.People userName 

@@ -9,7 +9,7 @@ open Haumohio.Azure
 type Query(auth: IAuthenticatedFunctionAccessor) =
   let creds = auth.Context.Value
   member this.me =
-    {| name=creds.UserName; client=creds.ClientName |}
+    {| name=creds.UserName; client=creds.ClientName; id=creds.ClientId |}
 
   member this.people () = 
     creds.ClientId
@@ -20,7 +20,10 @@ type Mutations(auth: IAuthenticatedFunctionAccessor)  =
   let creds = auth.Context.Value
 
   member this.addPerson (personalName:string) (familyName:string) =
-    Domain.addPerson creds.ClientId creds.UserName personalName familyName
+    try
+      Domain.addPerson creds.ClientId creds.UserName personalName familyName
+    with
+    | exc -> exc.ToString() |> Haumohio.Graphql.dataError 
 
   member this.assignRole (personId:string) (roleName:string) =
     Domain.assignRole creds.ClientId creds.UserName personId roleName

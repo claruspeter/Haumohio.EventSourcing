@@ -1,0 +1,32 @@
+@url = http://localhost:7071/graphql
+@userToken = {{$processEnv JWT_API_KEY}}
+@apiToken = {{$processEnv JWT_API_KEY}}
+
+POST http://localhost:7071/graphql
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+x-api-key: {{apiToken}}
+X-REQUEST-TYPE: GraphQL
+
+query{
+  me { name client id}
+  people{
+    id
+    personalName
+    familyName
+    roles
+  }
+}
+
+###
+POST http://localhost:7071/graphql
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+x-api-key: {{apiToken}}
+X-REQUEST-TYPE: GraphQL
+
+mutation {
+  addPerson(personalName: "John", familyName: "Smith"){
+    description
+  }
+}
