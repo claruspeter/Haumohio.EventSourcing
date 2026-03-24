@@ -55,7 +55,7 @@ module Domain =
     }
   
   let store = Memory.MemoryStore
-  // let store = Files.FileStore logger (Some "/home/peter/Projects/misc/Haumohio.EventSourcingV2/__data_files__")
+  // let store = Files.FileStore logger (Some "__data_files__")
   // let store = Blob.BlobStore logger None
   let private container clientId = store.container  clientId |> EventStore
 
