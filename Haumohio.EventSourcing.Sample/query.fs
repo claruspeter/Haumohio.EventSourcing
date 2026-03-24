@@ -12,8 +12,11 @@ type Query(auth: IAuthenticatedFunctionAccessor) =
     {| name=creds.UserName; client=creds.ClientName; id=creds.ClientId |}
 
   member this.people () = 
-    creds.ClientId
-    |> Domain.people
+    try
+      creds.ClientId
+      |> Domain.people
+    with
+    | exc -> exc.ToString() |> Haumohio.Graphql.dataError 
 
 
 type Mutations(auth: IAuthenticatedFunctionAccessor)  =

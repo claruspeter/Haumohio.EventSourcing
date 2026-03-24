@@ -22,27 +22,49 @@ module StateStorage =
       container.stateContainer.loadAs<State<'K, 'S>> filename
 
   let rec makeStateForDay (domain: 'D) (day:DateOnly) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
-    match loadStateForDay domain (day.AddDays -1) container with 
-    | Some state -> state
+    container.logger.LogDebug("Making state {Domain}{StateName} for {Today}", domain, typeof<'S>.Name, day)
+    match loadStateForDay domain day container with 
+    | Some state ->
+      container.logger.LogDebug("Using previously calculated state")
+      state
     | None ->
       let initial = 
         match findInitialEventDate domain container with 
-        | Some x when x < day -> makeStateForDay domain (day.AddDays -1) projector container
-        | _ -> State<'K, 'S>.empty
+        | Some x when x < day -> 
+          container.logger.LogDebug("No state for previous day {Day} - projecting...", (day.AddDays -1))
+          makeStateForDay domain (day.AddDays -1) projector container
+        | Some _ ->
+          container.logger.LogDebug("Initial event is {Day} - start from empty", day)
+          State<'K, 'S>.empty
+        | None ->
+          container.logger.LogDebug("No initial event - start from empty")
+          State<'K, 'S>.empty
       let state = projectForDay projector domain day initial container
       let filename = sprintf "%s/%s/%s.json" (domain.ToString().ToLowerInvariant()) (typeof<'S>.Name) (day |> dateOnlyString)
       let saved = container.stateContainer.save filename state
+      container.logger.LogInformation("State {Domain}.{StateName} for {Day} saved", domain, (typeof<'S>.Name, day))
       state
 
   let makeState (domain: 'D) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
     let today = container.stateContainer.timeProvider() |> DateOnly.FromDateTime 
+    container.logger.LogDebug("Making state {Domain}.{StateName} for today {Today}", domain, typeof<'S>.Name, today)
     let firstEvent = findInitialEventDate domain container
+    container.logger.LogDebug("Initial Event Date in {Domain}: {InitialDate}", domain, firstEvent)
     let initial = 
       match firstEvent with 
       | Some x when x < today -> 
         let yesterday = today |> _.AddDays(-1)
         match loadStateForDay domain yesterday container with 
-        | Some state -> state
-        | None -> makeStateForDay domain yesterday projector container
-      | _ -> State<'K, 'S>.empty
+        | Some state -> 
+          container.logger.LogDebug("Starting from yesterday's state")
+          state
+        | None -> 
+          container.logger.LogDebug("No state for yesterday - projecting...")
+          makeStateForDay domain yesterday projector container
+      | Some _ -> 
+        container.logger.LogDebug("Initial event is today - start from empty")
+        State<'K, 'S>.empty
+      | None -> 
+        container.logger.LogDebug("No initial event - start from empty")
+        State<'K, 'S>.empty
     projectForDay projector domain today initial container

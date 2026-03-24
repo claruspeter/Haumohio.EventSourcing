@@ -21,6 +21,8 @@ module Domain =
       |> fun x -> x.Remove( x.Length - 1)
     prefix + "-" + result 
 
+  let logger = LoggerFactory.Create(fun x -> x.AddConsole() |> ignore).CreateLogger("EventSourcing Sample")
+
   type DomainEvent =
     | PersonAdded of {| id: string; personalName:string; familyName: string |}
     | RoleAssigned of {| personId: string; roleName: string |}
@@ -53,7 +55,8 @@ module Domain =
     }
   
   let store = Memory.MemoryStore
-  // let store = Files.FileStore Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance (Some "/home/peter/Projects/misc/Haumohio.EventSourcingV2/__data_files__")
+  // let store = Files.FileStore logger (Some "/home/peter/Projects/misc/Haumohio.EventSourcingV2/__data_files__")
+  // let store = Blob.BlobStore logger None
   let private container clientId = store.container  clientId |> EventStore
 
   let projector (state: State<string,Person>) event =
