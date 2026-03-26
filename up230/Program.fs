@@ -8,12 +8,12 @@ let private removeExistingStates (container:StorageContainer) domain =
     container.list domain
     |> Seq.filter (
       fun x -> 
-        let fn = Path.GetFileName x
-        fn.[0] >= 'A' && fn.[0] <= 'Z'
+        let fn = x.ToLowerInvariant() |> Path.GetFileName |> _.Split('_') |> Seq.head
+        fn <> "event"
     )
     |> Seq.toList
   states
-    |> Seq.iter (
+    |> List.iter (
       fun x -> 
         printfn "  - %s" (x.Substring(domain.Length + 1))
         container.remove x
@@ -24,15 +24,17 @@ let private removeExistingStates (container:StorageContainer) domain =
 let private v230Name domain (v220Name: string) = 
   let fname = Path.GetFileName v220Name
   let parts = fname.Split('_')
-  sprintf "%s/event/%s_%s" domain (parts.[1]) (parts.[3])
+  sprintf "%s/event/%s_%s_%s.json" domain parts.[1] parts.[2] parts.[3]
 
 let private moveEventsInDomain (container:StorageContainer) domain =
   printfn "%s:" domain
   let input = 
     container.list $"{domain}/"
     |> Seq.filter (fun x -> x |> Path.GetFileName |> _.StartsWith("event"))
+    |> Seq.toList
+  let len = input |> List.length
   input 
-    |> Seq.iter (
+    |> List.iter (
         fun oldName -> 
           printfn "  > %s" oldName
           let newName = v230Name domain oldName
@@ -41,7 +43,6 @@ let private moveEventsInDomain (container:StorageContainer) domain =
           container.remove oldName
           printfn "  < %s" newName
       )
-  let len = input |> Seq.length
   printfn "  %d events moved" len
   domain
 
@@ -49,7 +50,7 @@ let private moveEvents (container:StorageContainer) =
   printfn "\n%s" container.name
   printfn "%s" (String.init container.name.Length (fun _ -> "-"))
   container.part ""
-  |> Seq.iter (moveEventsInDomain container >> removeExistingStates container >> ignore)
+  |> Seq.iter ( removeExistingStates container >> moveEventsInDomain container >> ignore)
 
 
 
@@ -58,9 +59,15 @@ printfn "==============================================\n"
 
 let logger = LoggerFactory.Create(fun x -> x.AddConsole() |> ignore).CreateLogger("up230")
 
-let store = Files.FileStore logger (Some "../__data__")
+// let store = Files.FileStore logger (Some "../__data__")
+let store = Blob.BlobStore logger None
+
+
+let myContainerPrefixes = ["devworkinternal"; "devwork-integration-"; "google-"; "github-"; "proj-"; "org-"]
 printfn "Containers: "
-let containers = store.containers() 
+let containers = 
+  store.containers() 
+  |> Seq.filter ( fun x -> myContainerPrefixes |> Seq.exists (fun p -> x.StartsWith(p) ) )
 
 containers
 |> Seq.map store.container
