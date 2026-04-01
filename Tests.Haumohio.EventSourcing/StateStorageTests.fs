@@ -74,7 +74,7 @@ let ``State is stored in the state container under it's own folder`` () =
   //Act
   let _ = StateStorage.makeState TestDomain.Test1 projector cToday
   //Assert
-  cToday.stateContainer.list "test1" |> Seq.toList |> should equal ["test1/TestProjection/2006-06-04.json"]
+  cToday.stateContainer.list "test1" |> Seq.toList |> should equal ["test1/TestProjection/2006-06-04"]
 
 [<Fact>]
 let ``State is calculated but not stored for today`` () = 
@@ -110,16 +110,16 @@ let ``State is stored for each day leading up to today`` () =
   cToday.stateContainer.list "test1" 
   |> Seq.toList 
   |> should equal [
-    "test1/TestProjection/2006-05-26.json"
-    "test1/TestProjection/2006-05-27.json"
-    "test1/TestProjection/2006-05-28.json"
-    "test1/TestProjection/2006-05-29.json"
-    "test1/TestProjection/2006-05-30.json"
-    "test1/TestProjection/2006-05-31.json"
-    "test1/TestProjection/2006-06-01.json"
-    "test1/TestProjection/2006-06-02.json"
-    "test1/TestProjection/2006-06-03.json"
-    "test1/TestProjection/2006-06-04.json"
+    "test1/TestProjection/2006-05-26"
+    "test1/TestProjection/2006-05-27"
+    "test1/TestProjection/2006-05-28"
+    "test1/TestProjection/2006-05-29"
+    "test1/TestProjection/2006-05-30"
+    "test1/TestProjection/2006-05-31"
+    "test1/TestProjection/2006-06-01"
+    "test1/TestProjection/2006-06-02"
+    "test1/TestProjection/2006-06-03"
+    "test1/TestProjection/2006-06-04"
   ]
 
 [<Fact>]

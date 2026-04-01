@@ -51,7 +51,7 @@ module EventStorage =
     let event = { at = c.timeProvider(); by = userName; details = eventDetail }
     let category = domain.ToString().ToLowerInvariant()
     let evtName = eventDetail |> DUName
-    let filename = sprintf "%s/event/%s_%s.json" category (event.at |> datetimeString) evtName
+    let filename = sprintf "%s/event/%s_%s" category (event.at |> datetimeString) evtName
     c.logger.LogDebug $"storing {filename}"
     c.eventContainer.save filename event
     :?> Event<'E>
@@ -66,5 +66,5 @@ module EventStorage =
     let prefix = sprintf "%s/event/%s" (domain.ToString().ToLowerInvariant()) (dateOnlyString day) 
     prefix
     |> container.eventContainer.list 
-    |> Seq.map Path.GetFileNameWithoutExtension
+    |> Seq.map Path.GetFileName
     |> Seq.toList

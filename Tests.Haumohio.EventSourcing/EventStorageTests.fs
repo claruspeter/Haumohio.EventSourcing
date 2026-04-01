@@ -27,10 +27,10 @@ let ``Event is stored under DOMAIN/event/[event]`` () =
   //Act
   let response = storeEvent container TestDomain.Test1 "test_user" (Data 42)
   //Assert
-  container.eventContainer.list "" |> Seq.toList |> should equal ["test1/event/2007-06-05_04-03-02.001_Data.json"]
+  container.eventContainer.list "" |> Seq.toList |> should equal ["test1/event/2007-06-05_04-03-02.001_Data"]
   container.eventContainer.part "" |> Seq.toList |> should equal ["test1"]
   container.eventContainer.part "test1/" |> Seq.toList |> should equal ["event"]
-  container.eventContainer.list "test1/event" |> Seq.toList |> should equal ["test1/event/2007-06-05_04-03-02.001_Data.json"]
+  container.eventContainer.list "test1/event" |> Seq.toList |> should equal ["test1/event/2007-06-05_04-03-02.001_Data"]
 
 [<Fact>]
 let ``Events can be retrieved by day for a domain`` () =

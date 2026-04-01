@@ -18,7 +18,7 @@ module StateStorage =
     |> Option.map (fun x -> x.Substring(folder.Length, 10) |> DateOnly.Parse )
 
   let loadStateForDay (domain: 'D) (day:DateOnly) (container: EventSourcingContainer<'D>) =
-      let filename = sprintf "%s/%s/%s.json" (domain.ToString().ToLowerInvariant()) (typeof<'S>.Name) (day |> dateOnlyString)
+      let filename = sprintf "%s/%s/%s" (domain.ToString().ToLowerInvariant()) (typeof<'S>.Name) (day |> dateOnlyString)
       container.stateContainer.loadAs<State<'K, 'S>> filename
 
   let rec makeStateForDay (domain: 'D) (day:DateOnly) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
@@ -40,7 +40,7 @@ module StateStorage =
           container.logger.LogDebug("No initial event - start from empty")
           State<'K, 'S>.empty
       let state = projectForDay projector domain day initial container
-      let filename = sprintf "%s/%s/%s.json" (domain.ToString().ToLowerInvariant()) (typeof<'S>.Name) (day |> dateOnlyString)
+      let filename = sprintf "%s/%s/%s" (domain.ToString().ToLowerInvariant()) (typeof<'S>.Name) (day |> dateOnlyString)
       let saved = container.stateContainer.save filename state
       container.logger.LogInformation("State {Domain}.{StateName} for {Day} saved", domain, (typeof<'S>.Name, day))
       state
