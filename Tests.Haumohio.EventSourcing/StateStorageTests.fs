@@ -8,6 +8,7 @@ open Haumohio.Storage
 open Haumohio.EventSourcing
 open Haumohio.EventSourcing.EventStorage
 open TestCommon
+open Haumohio.EventSourcing.Projection
 
 
 let _now = fun () -> DateTime(2006, 6,5,4,3,2,1)
@@ -144,3 +145,22 @@ let ``State is calculated for each day leading up to today`` () =
   |> Seq.map _.cnt
   |> Seq.toList
   |> should equal [1; 1; 1; 1; 1; 2; 2; 2; 2; 2]
+
+[<Fact>]
+let ``State can be calculated using a given empty state`` () = 
+  //Arrange
+  let store = newStore()
+  let container = {
+    eventContainer = store.container "events"
+    stateContainer = store.container "states"
+  }
+  let _ = storeEvent container TestDomain.Test1 "test_user" (Data 42)
+  let initial = TestState.empty |> addOrAmend "42" (fun x -> {x with cnt=10; stuff=[1;2;3]})
+  //Act
+  let state = StateStorage.makeStateWithEmpty initial TestDomain.Test1 projector container
+  //Assert
+  container.stateContainer.list "test1" |> Seq.length |> should equal 0
+  state.["42"].IsSome |> should equal true
+  let result = state.["42"].Value
+  result.cnt |> should equal 11
+  result.stuff |> should equal [1;2;3]

@@ -44,7 +44,7 @@ type TestState = Projection.State<string, TestProjection>
 
 let projector (state: TestState) (ev: Event<TestEvents>) =
   match ev.details with 
-  | Data x -> addOrAmend (x.ToString()) (fun p -> {p with id=x.ToString(); cnt=p.cnt + 1; stuff=[]}) state
+  | Data x -> addOrAmend (x.ToString()) (fun p -> {p with id=x.ToString(); cnt=p.cnt + 1}) state
   | _ -> state // do nothing 
 
 let empty = State<string, TestProjection>.empty

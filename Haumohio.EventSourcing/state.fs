@@ -21,7 +21,7 @@ module StateStorage =
       let filename = sprintf "%s/%s/%s" (domain.ToString().ToLowerInvariant()) (typeof<'S>.Name) (day |> dateOnlyString)
       container.stateContainer.loadAs<State<'K, 'S>> filename
 
-  let rec makeStateForDay (domain: 'D) (day:DateOnly) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
+  let rec makeStateForDay (empty: State<'K,'S>) (domain: 'D) (day:DateOnly) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
     container.logger.LogDebug("Making state {Domain}.{StateName} for {Today}", domain, typeof<'S>.Name, day)
     match loadStateForDay domain day container with 
     | Some state ->
@@ -32,20 +32,20 @@ module StateStorage =
         match findInitialEventDate domain container with 
         | Some x when x < day -> 
           container.logger.LogDebug("No state for previous day {Day} - projecting...", (day.AddDays -1))
-          makeStateForDay domain (day.AddDays -1) projector container
+          makeStateForDay empty domain (day.AddDays -1) projector container
         | Some _ ->
           container.logger.LogDebug("Initial event is {Day} - start from empty", day)
-          State<'K, 'S>.empty
+          empty
         | None ->
           container.logger.LogDebug("No initial event - start from empty")
-          State<'K, 'S>.empty
+          empty
       let state = projectForDay projector domain day initial container
       let filename = sprintf "%s/%s/%s" (domain.ToString().ToLowerInvariant()) (typeof<'S>.Name) (day |> dateOnlyString)
       let saved = container.stateContainer.save filename state
       container.logger.LogInformation("State {Domain}.{StateName} for {Day} saved", domain, (typeof<'S>.Name), day)
       state
 
-  let makeState (domain: 'D) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
+  let makeStateWithEmpty (empty: State<'K,'S>) (domain: 'D) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
     let today = container.stateContainer.timeProvider() |> DateOnly.FromDateTime 
     container.logger.LogDebug("Making state {Domain}.{StateName} for today {Today}", domain, typeof<'S>.Name, today)
     let firstEvent = findInitialEventDate domain container
@@ -60,11 +60,14 @@ module StateStorage =
           state
         | None -> 
           container.logger.LogDebug("No state for yesterday - projecting...")
-          makeStateForDay domain yesterday projector container
+          makeStateForDay empty domain yesterday projector container
       | Some _ -> 
         container.logger.LogDebug("Initial event is today - start from empty")
-        State<'K, 'S>.empty
+        empty
       | None -> 
         container.logger.LogDebug("No initial event - start from empty")
-        State<'K, 'S>.empty
+        empty
     projectForDay projector domain today initial container
+
+  let makeState (domain: 'D) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
+    makeStateWithEmpty State<'K, 'S>.empty domain projector container
