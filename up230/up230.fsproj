@@ -14,9 +14,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Haumohio.Storage" Version="2.0.18" />
-    <PackageReference Include="Haumohio.Storage.Blob" Version="2.0.17" />
-    <PackageReference Include="Haumohio.Storage.Files" Version="2.0.29" />
+    <PackageReference Include="Haumohio.Storage" Version="2.0.19" />
+    <PackageReference Include="Haumohio.Storage.Blob" Version="2.0.18" />
+    <PackageReference Include="Haumohio.Storage.Files" Version="2.0.30" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.5" />
   </ItemGroup>
 

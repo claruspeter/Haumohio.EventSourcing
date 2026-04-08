@@ -48,3 +48,8 @@ let projector (state: TestState) (ev: Event<TestEvents>) =
   | _ -> state // do nothing 
 
 let empty = State<string, TestProjection>.empty
+
+let mutable _test_now = new DateTime(2026, 1,2,3,4,5,6, DateTimeKind.Utc)
+let incrementingTimeProvider = fun () -> 
+  _test_now <- _test_now.AddSeconds(1)
+  _test_now

@@ -17,6 +17,17 @@ module Projection =
   open EventStorage
   open System.Collections.Immutable
 
+  type System.Collections.Generic.IDictionary<'a, 'b> with 
+    member this.GetOrDefault (key: 'a) (defaultValue: 'b) =
+      if this.ContainsKey(key) then 
+        this.[key]
+      else
+        defaultValue
+        
+    member this.Set (key: 'a) (value: 'b) =
+      this.[key] <- value
+      this
+
   let inline unNull defaultValue value =
     match value |> box with 
     | null -> defaultValue
@@ -98,3 +109,56 @@ module Projection =
   let setMetaData key value state =
     state.metadata[key] <- value
     state
+
+  let nextStateKey prefix (state: State<_,_>) =
+    state.metadata.GetOrDefault $"key_{prefix}" "0" |> int
+
+  let incStateKey prefix (trackingId:Guid) (state: State<_,_>) =
+    let newKey = nextStateKey prefix state |> (+) 1
+    let updated = 
+      state.metadata.Set $"key_{prefix}" (newKey.ToString())
+      |> fun x -> x.Set $"tracked_{trackingId}" (newKey.ToString())
+    {state with metadata = updated}
+
+  let lookupTrackedKey (trackingId:Guid) (state: State<_,_>) =
+    let key = $"tracked_{trackingId}"
+    if state.metadata.ContainsKey key then
+      state.metadata.[key] |> int |> Some
+    else
+      None
+
+  let addKeyToEventStorageResponse (trackingId:Guid) (state: State<'Key, 'Model>) (response: EventStorageResponse) =
+    match lookupTrackedKey trackingId state with 
+    | None -> response
+    | Some key -> {response with domain = sprintf "%s/%d" response.domain key }
+
+  type State<'Key, 'Model 
+      when 'Key: equality 
+      and 'Model :> IHasKey<'Key> 
+      and 'Model :> IAutoClean<'Model> 
+      and 'Model: equality
+    > with 
+        member this.incKey prefix trackingId = incStateKey prefix trackingId this
+        member this.nextKey prefix = nextStateKey prefix this
+
+  type CreateEventStorageResponse<'D when 'D: enum<int>> = {
+    at: DateTime
+    by: string
+    domain: string
+    action: string
+    description: string 
+    trackingId: Guid 
+    generatedKey: EventSourcingContainer<'D> -> string
+  }
+
+  let storeTrackedEvent (container:EventSourcingContainer<_>) (domain: 'D) trackingId genState userId (eventDetail: 'E)  = 
+    let response = storeEvent container domain userId eventDetail
+    {
+      at = response.at
+      by = response.by
+      domain = domain.ToString() |> _.ToLowerInvariant()
+      action = response.action
+      description = response.description
+      trackingId = trackingId
+      generatedKey = fun c -> genState c |> lookupTrackedKey trackingId |> Option.map _.ToString() |> Option.defaultValue "key not_available"
+    }

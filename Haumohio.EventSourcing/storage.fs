@@ -13,7 +13,7 @@ module EventStorage =
   type EventStorageResponse = {
     at: DateTime
     by: string
-    category: string
+    domain: string
     action: string
     description: string
   }
@@ -55,7 +55,7 @@ module EventStorage =
     c.logger.LogDebug $"storing {filename}"
     c.eventContainer.save filename event
     :?> Event<'E>
-    |> fun x -> { at = x.at; by = x.by; action = evtName; category=category; description = eventDetail.description}
+    |> fun x -> { at = x.at; by = x.by; action = evtName; domain=category; description = eventDetail.description}
 
   let storeEvents<'E, 'D when 'E:> IHasDescription and 'D: enum<int>> (c:EventSourcingContainer<'D>) (domain:'D) userName (eventDetail:'E seq) =
     eventDetail
@@ -68,3 +68,4 @@ module EventStorage =
     |> container.eventContainer.list 
     |> Seq.map Path.GetFileName
     |> Seq.toList
+

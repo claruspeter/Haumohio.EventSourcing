@@ -13,9 +13,7 @@
     <Compile Include="EventStorageTests.fs" />
     <Compile Include="ProjectionTests.fs" />
     <Compile Include="StateStorageTests.fs" />
-    <!-- <Compile Include="Tests.fs" />
-    <Compile Include="SaveStateTests.fs" />
-    <Compile Include="StateVersioningTests.fs" /> -->
+    <Compile Include="TrackingTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
