@@ -135,6 +135,8 @@ module Projection =
       (generatedKey: EventSourcingContainer -> string)
     ) =
 
+    new() = CreateEventStorageResponse(DateTime.MinValue, "", "", "", "", Guid.Empty, fun _ -> "")
+
     member this.action: string = action
     member this.at: DateTime = at
     member this.by: string = by
