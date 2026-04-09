@@ -66,13 +66,13 @@ module Projection =
     else
       {final with at= events |> Seq.last |> fun x -> x.at }
 
-  let projectForDay (projector: Projector<'K, 'S, 'E>) (domain:'D) (day: DateOnly) initialState (container: EventStorage.EventSourcingContainer<'D>) =
+  let projectForDay (projector: Projector<'K, 'S, 'E>) (domain:'D) (day: DateOnly) initialState (container: EventStorage.EventSourcingContainer) =
     let events = 
       sprintf "%s/event/%s" (domain.ToString().ToLowerInvariant()) (day |> dateOnlyString)
       |> container.eventContainer.all<Event<'E>>
     projectEvents projector events initialState
 
-  let project (projector: Projector<'K, 'S, 'E>) (domain:'D) initialState (container: EventStorage.EventSourcingContainer<'D>) =
+  let project (projector: Projector<'K, 'S, 'E>) (domain:'D) initialState (container: EventStorage.EventSourcingContainer) =
     projectForDay projector domain (container.timeProvider() |> DateOnly.FromDateTime ) initialState container
 
   let amend<'K, 'P when 'P :> IHasKey<'K> and 'P :> IAutoClean<'P> and 'P:equality> (key: 'K) (updater: 'P -> 'P) (state: State<'K, 'P>) =
@@ -125,30 +125,38 @@ module Projection =
         member this.incKey prefix trackingId = incStateKey prefix trackingId this
         member this.nextKey prefix = nextStateKey prefix this
 
-  type CreateEventStorageResponse<'D when 'D: enum<int>> = {
-    at: DateTime
-    by: string
-    domain: string
-    action: string
-    description: string 
-    trackingId: Guid 
-    generatedKey: EventSourcingContainer<'D> -> string
-  }with
-    interface IEventResponse with
-        member this.action: string = this.action
-        member this.at: DateTime = this.at
-        member this.by: string = this.by
-        member this.description: string = this.description
-        member this.domain: string = this.domain
+  type CreateEventStorageResponse(
+      (at: DateTime),
+      (by: string),
+      (domain: string),
+      (action: string),
+      (description: string ),
+      (trackingId: Guid ),
+      (generatedKey: EventSourcingContainer -> string)
+    ) =
 
-  let storeTrackedEvent (container:EventSourcingContainer<_>) (domain: 'D) trackingId genState userId (eventDetail: 'E)  = 
+    member this.action: string = action
+    member this.at: DateTime = at
+    member this.by: string = by
+    member this.description: string = description
+    member this.domain: string = domain
+    member this.GenerateKey container = generatedKey container
+
+    interface IEventResponse with
+        member this.action: string = action
+        member this.at: DateTime = at
+        member this.by: string = by
+        member this.description: string = description
+        member this.domain: string = domain
+
+  let storeTrackedEvent (container: EventSourcingContainer) (domain: 'D) (trackingId: Guid) (genState: EventSourcingContainer -> State<'K,'P>) (userId: UserId) (eventDetail: 'E) : CreateEventStorageResponse  = 
     let response = storeEvent container domain userId eventDetail
-    {
-      at = response.at
-      by = response.by
-      domain = domain.ToString() |> _.ToLowerInvariant()
-      action = response.action
-      description = response.description
-      trackingId = trackingId
+    CreateEventStorageResponse(
+      at = response.at,
+      by = response.by,
+      domain = (domain.ToString() |> _.ToLowerInvariant()),
+      action = response.action,
+      description = response.description,
+      trackingId = trackingId,
       generatedKey = fun c -> genState c |> lookupTrackedKey trackingId |> Option.map _.ToString() |> Option.defaultValue "key not_available"
-    }
+    )

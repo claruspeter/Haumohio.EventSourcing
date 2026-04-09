@@ -10,18 +10,18 @@ module StateStorage =
   open EventStorage
   open Projection
 
-  let findInitialEventDate (domain: 'D) (container: EventSourcingContainer<'D>) =
+  let findInitialEventDate (domain: 'D) (container: EventSourcingContainer) =
     let folder = sprintf "%s/event/" (domain.ToString().ToLowerInvariant())
     folder
     |> container.eventContainer.list
     |> Seq.tryHead
     |> Option.map (fun x -> x.Substring(folder.Length, 10) |> DateOnly.Parse )
 
-  let loadStateForDay (domain: 'D) (day:DateOnly) (container: EventSourcingContainer<'D>) =
+  let loadStateForDay (domain: 'D) (day:DateOnly) (container: EventSourcingContainer) =
       let filename = sprintf "%s/%s/%s" (domain.ToString().ToLowerInvariant()) (typeof<'S>.Name) (day |> dateOnlyString)
       container.stateContainer.loadAs<State<'K, 'S>> filename
 
-  let rec makeStateForDay (empty: State<'K,'S>) (domain: 'D) (day:DateOnly) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
+  let rec makeStateForDay (empty: State<'K,'S>) (domain: 'D) (day:DateOnly) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer) =
     container.logger.LogDebug("Making state {Domain}.{StateName} for {Today}", domain, typeof<'S>.Name, day)
     match loadStateForDay domain day container with 
     | Some state ->
@@ -45,7 +45,7 @@ module StateStorage =
       container.logger.LogInformation("State {Domain}.{StateName} for {Day} saved", domain, (typeof<'S>.Name), day)
       state
 
-  let makeStateWithEmpty (empty: State<'K,'S>) (domain: 'D) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
+  let makeStateWithEmpty (empty: State<'K,'S>) (domain: 'D) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer) =
     let today = container.stateContainer.timeProvider() |> DateOnly.FromDateTime 
     container.logger.LogDebug("Making state {Domain}.{StateName} for today {Today}", domain, typeof<'S>.Name, today)
     let firstEvent = findInitialEventDate domain container
@@ -69,5 +69,5 @@ module StateStorage =
         empty
     projectForDay projector domain today initial container
 
-  let makeState (domain: 'D) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer<'D>) =
+  let makeState (domain: 'D) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer) =
     makeStateWithEmpty State<'K, 'S>.empty domain projector container

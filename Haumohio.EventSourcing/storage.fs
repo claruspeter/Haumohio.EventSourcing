@@ -54,14 +54,14 @@ module EventStorage =
         |> DateTime.Parse
     | _ -> DateTime.MinValue
 
-  type EventSourcingContainer<'D when 'D: enum<int>> = {
+  type EventSourcingContainer = {
     eventContainer: StorageContainer
     stateContainer: StorageContainer
   }with 
     member this.timeProvider = this.eventContainer.timeProvider
     member this.logger = this.eventContainer.logger
 
-  let storeEvent<'E, 'D when 'E:> IHasDescription and 'D: enum<int>> (c:EventSourcingContainer<'D>) (domain:'D) userName (eventDetail:'E) =
+  let storeEvent<'E, 'D when 'E:> IHasDescription and 'D: enum<int>> (c:EventSourcingContainer) (domain:'D) userName (eventDetail:'E) =
     let event = { at = c.timeProvider(); by = userName; details = eventDetail }
     let category = domain.ToString().ToLowerInvariant()
     let evtName = eventDetail |> DUName
@@ -71,12 +71,12 @@ module EventStorage =
     :?> Event<'E>
     |> fun x -> { at = x.at; by = x.by; action = evtName; domain=category; description = eventDetail.description}
 
-  let storeEvents<'E, 'D when 'E:> IHasDescription and 'D: enum<int>> (c:EventSourcingContainer<'D>) (domain:'D) userName (eventDetail:'E seq) =
+  let storeEvents<'E, 'D when 'E:> IHasDescription and 'D: enum<int>> (c:EventSourcingContainer) (domain:'D) userName (eventDetail:'E seq) =
     eventDetail
     |> Seq.map (storeEvent c domain userName)
     |> Seq.reduce ( fun acc i -> {acc with action = $"{acc.action}, {i.action}"; description = $"{acc.description},\r\n{i.description}" })
 
-  let list (domain: 'D) (day:DateOnly) (container: EventSourcingContainer<'D>) =
+  let list (domain: 'D) (day:DateOnly) (container: EventSourcingContainer) =
     let prefix = sprintf "%s/event/%s" (domain.ToString().ToLowerInvariant()) (dateOnlyString day) 
     prefix
     |> container.eventContainer.list 

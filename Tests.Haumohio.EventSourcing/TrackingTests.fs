@@ -79,7 +79,7 @@ let addSubItem container parentKey =
 [<Fact>]
 let ``Creating first item gets key 1`` () =
   let store = newStore()
-  let container : EventSourcingContainer<TestDomain> = store.container _clientId |> EventStore
+  let container : EventSourcingContainer = store.container _clientId |> EventStore
   let _ = addItem container "My first Event"
   let state = makeState TestDomain.Tests testProjector container
   state.data.Count |> should equal 1
@@ -89,7 +89,7 @@ let ``Creating first item gets key 1`` () =
 [<Fact>]
 let ``Consecutive items get consecutive keys`` () =
   let store = newStore()
-  let container : EventSourcingContainer<TestDomain> = store.container _clientId |> EventStore
+  let container : EventSourcingContainer = store.container _clientId |> EventStore
   let _ = addItem container "My first Event"
   let _ = addItem container "My second Event"
   let _ = addItem container "My third Event"
@@ -108,7 +108,7 @@ let ``Consecutive items get consecutive keys`` () =
 [<Fact>]
 let ``The next key is the latest assigned key`` () =
   let store = newStore()
-  let container : EventSourcingContainer<TestDomain> = store.container _clientId |> EventStore
+  let container : EventSourcingContainer = store.container _clientId |> EventStore
   let _ = addItem container "My first Event"
   let _ = addItem container "My second Event"
   let _ = addItem container "My third Event"
@@ -119,7 +119,7 @@ let ``The next key is the latest assigned key`` () =
 [<Fact>]
 let ``Incrementing the state increments the next key`` () =
   let store = newStore()
-  let container : EventSourcingContainer<TestDomain> = store.container _clientId |> EventStore
+  let container : EventSourcingContainer = store.container _clientId |> EventStore
   let _ = addItem container "My first Event"
   let _ = addItem container "My second Event"
   let _ = addItem container "My third Event"
@@ -131,7 +131,7 @@ let ``Incrementing the state increments the next key`` () =
 [<Fact>]
 let ``Sub-items may have independent calculations`` () =
   let store = newStore()
-  let container : EventSourcingContainer<TestDomain> = store.container _clientId |> EventStore
+  let container : EventSourcingContainer = store.container _clientId |> EventStore
   let _ = addItem container "My first Event"
   let _ = addSubItem container 1
   let _ = addItem container "My second Event"
@@ -146,7 +146,7 @@ let ``Sub-items may have independent calculations`` () =
 [<Fact>]
 let ``Creating an item tracks the key`` () =
   let store = newStore()
-  let container : EventSourcingContainer<TestDomain> = store.container _clientId |> EventStore
+  let container : EventSourcingContainer = store.container _clientId |> EventStore
   let trackingId, response = addItem  container "My first Event"
   let state = makeState TestDomain.Tests testProjector container
   state |> lookupTrackedKey trackingId |> should equal (Some 1)
@@ -154,7 +154,7 @@ let ``Creating an item tracks the key`` () =
 [<Fact>]
 let ``Looking up an non-matching trackingId returns None`` () =
   let store = newStore()
-  let container : EventSourcingContainer<TestDomain> = store.container _clientId |> EventStore
+  let container : EventSourcingContainer = store.container _clientId |> EventStore
   let trackingId, response = addItem  container "My first Event"
   let state = makeState TestDomain.Tests testProjector container
   state |> lookupTrackedKey (Guid.NewGuid()) |> should equal None
@@ -162,7 +162,7 @@ let ``Looking up an non-matching trackingId returns None`` () =
 [<Fact>]
 let ``Response from creating an item includes the new key in the category`` () =
   let store = newStore()
-  let container : EventSourcingContainer<TestDomain> = store.container _clientId |> EventStore
+  let container : EventSourcingContainer = store.container _clientId |> EventStore
   let trackingId, response = addItem  container "My first Event"
   let state = makeState TestDomain.Tests testProjector container
   let trackedResponse = addKeyToEventStorageResponse trackingId state response
@@ -175,7 +175,12 @@ let ``Tracked event storage response calculates new key on demand`` () =
   let trackingId = Guid.NewGuid()
   let stateGen = fun c -> 
     makeState TestDomain.Tests testProjector c
-  let response = 
+  let response : CreateEventStorageResponse = 
     TestEvent.CreateOne {|title="My first event"; trackingId = trackingId |}
     |> storeTrackedEvent container TestDomain.Tests trackingId stateGen _user
-  response.generatedKey container |> should equal "1"
+  response.action |> should equal "CreateOne"
+  response.at |> should equal _test_now
+  response.by |> should equal _user
+  response.description |> should equal "Item created"
+  response.domain |> should equal "tests"
+  response.GenerateKey container |> should equal "1"
