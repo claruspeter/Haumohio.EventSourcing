@@ -173,8 +173,7 @@ let ``Tracked event storage response calculates new key on demand`` () =
   let store = newStore()
   let container = store.container _clientId |> EventStore
   let trackingId = Guid.NewGuid()
-  let stateGen = fun c -> 
-    makeState TestDomain.Tests testProjector c
+  let stateGen = fun c -> makeState TestDomain.Tests testProjector c
   let response : CreateEventStorageResponse = 
     TestEvent.CreateOne {|title="My first event"; trackingId = trackingId |}
     |> storeTrackedEvent container TestDomain.Tests trackingId stateGen _user

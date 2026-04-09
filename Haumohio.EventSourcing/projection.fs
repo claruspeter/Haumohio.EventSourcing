@@ -143,6 +143,8 @@ module Projection =
     member this.by: string = by
     member this.description: string = description
     member this.domain: string = domain
+
+    [<HotChocolate.GraphQLIgnore>]
     member this.GenerateKey container = generatedKey container
 
     interface IEventResponse with
