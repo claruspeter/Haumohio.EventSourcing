@@ -125,15 +125,16 @@ module Projection =
         member this.incKey prefix trackingId = incStateKey prefix trackingId this
         member this.nextKey prefix = nextStateKey prefix this
 
-  type CreateEventStorageResponse(
-      (at: DateTime),
-      (by: string),
-      (domain: string),
-      (action: string),
-      (description: string ),
-      (trackingId: Guid ),
-      (generatedKey: EventSourcingContainer -> string)
-    ) =
+  type CreateEventStorageResponse
+      internal (
+        (at: DateTime),
+        (by: string),
+        (domain: string),
+        (action: string),
+        (description: string ),
+        (trackingId: Guid ),
+        (generatedKey: EventSourcingContainer -> string)
+      ) =
 
     new() = CreateEventStorageResponse(DateTime.MinValue, "", "", "", "", Guid.Empty, fun _ -> "")
 
