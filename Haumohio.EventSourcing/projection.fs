@@ -17,22 +17,6 @@ module Projection =
   open EventStorage
   open System.Collections.Immutable
 
-  type System.Collections.Generic.IDictionary<'a, 'b> with 
-    member this.GetOrDefault (key: 'a) (defaultValue: 'b) =
-      if this.ContainsKey(key) then 
-        this.[key]
-      else
-        defaultValue
-        
-    member this.Set (key: 'a) (value: 'b) =
-      this.[key] <- value
-      this
-
-  let inline unNull defaultValue value =
-    match value |> box with 
-    | null -> defaultValue
-    | _ -> value
-
   let inline autoClean<'a when 'a :> IAutoClean<'a> > (state: 'a) =
     (state :> IAutoClean<'a>).clean()
 
@@ -149,7 +133,13 @@ module Projection =
     description: string 
     trackingId: Guid 
     generatedKey: EventSourcingContainer<'D> -> string
-  }
+  }with
+    interface IEventResponse with
+        member this.action: string = this.action
+        member this.at: DateTime = this.at
+        member this.by: string = this.by
+        member this.description: string = this.description
+        member this.domain: string = this.domain
 
   let storeTrackedEvent (container:EventSourcingContainer<_>) (domain: 'D) trackingId genState userId (eventDetail: 'E)  = 
     let response = storeEvent container domain userId eventDetail

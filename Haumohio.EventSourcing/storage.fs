@@ -10,13 +10,27 @@ module EventStorage =
     match Microsoft.FSharp.Reflection.FSharpValue.GetUnionFields(x, typeof<'a>) with
     | case, _ -> case.Name
 
+  type IEventResponse = 
+    abstract member at: DateTime
+    abstract member by: string
+    abstract member domain: string
+    abstract member action: string
+    abstract member description: string    
+
   type EventStorageResponse = {
     at: DateTime
     by: string
     domain: string
     action: string
     description: string
-  }
+  }with
+    interface IEventResponse with
+        member this.action: string = this.action
+        member this.at: DateTime = this.at
+        member this.by: string = this.by
+        member this.description: string = this.description
+        member this.domain: string = this.domain
+
 
   type IHasDescription = 
     abstract member description: string
