@@ -1,6 +1,7 @@
 module TestCommon
 open System
 open System.Collections.Generic
+open Haumohio.Extensions
 open Haumohio.EventSourcing
 open Haumohio.EventSourcing.Projection
 open Haumohio.EventSourcing.EventStorage

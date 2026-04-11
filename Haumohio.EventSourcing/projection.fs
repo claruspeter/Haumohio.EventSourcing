@@ -125,43 +125,30 @@ module Projection =
         member this.incKey prefix trackingId = incStateKey prefix trackingId this
         member this.nextKey prefix = nextStateKey prefix this
 
-  type CreateEventStorageResponse
-      internal (
-        (at: DateTime),
-        (by: string),
-        (domain: string),
-        (action: string),
-        (description: string ),
-        (trackingId: Guid ),
-        (generatedKey: EventSourcingContainer -> string)
-      ) =
-
-    new() = CreateEventStorageResponse(DateTime.MinValue, "", "", "", "", Guid.Empty, fun _ -> "")
-
-    member this.action: string = action
-    member this.at: DateTime = at
-    member this.by: string = by
-    member this.description: string = description
-    member this.domain: string = domain
-
-    [<HotChocolate.GraphQLIgnore>]
-    member this.GenerateKey container = generatedKey container
-
+  type CreateEventStorageResponse = {
+    at: DateTime
+    by: string
+    domain: string
+    action: string
+    description: string 
+    trackingId: Guid 
+    generatedKey: EventSourcingContainer -> string
+  }with
     interface IEventResponse with
-        member this.action: string = action
-        member this.at: DateTime = at
-        member this.by: string = by
-        member this.description: string = description
-        member this.domain: string = domain
+        member this.action: string = this.action
+        member this.at: DateTime = this.at
+        member this.by: string = this.by
+        member this.description: string = this.description
+        member this.domain: string = this.domain
 
   let storeTrackedEvent (container: EventSourcingContainer) (domain: 'D) (trackingId: Guid) (genState: EventSourcingContainer -> State<'K,'P>) (userId: UserId) (eventDetail: 'E) : CreateEventStorageResponse  = 
     let response = storeEvent container domain userId eventDetail
-    CreateEventStorageResponse(
-      at = response.at,
-      by = response.by,
-      domain = (domain.ToString() |> _.ToLowerInvariant()),
-      action = response.action,
-      description = response.description,
-      trackingId = trackingId,
+    {
+      at = response.at
+      by = response.by
+      domain = (domain.ToString() |> _.ToLowerInvariant())
+      action = response.action
+      description = response.description
+      trackingId = trackingId
       generatedKey = fun c -> genState c |> lookupTrackedKey trackingId |> Option.map _.ToString() |> Option.defaultValue "key not_available"
-    )
+    }

@@ -182,4 +182,4 @@ let ``Tracked event storage response calculates new key on demand`` () =
   response.by |> should equal _user
   response.description |> should equal "Item created"
   response.domain |> should equal "tests"
-  response.GenerateKey container |> should equal "1"
+  response.generatedKey container |> should equal "1"
