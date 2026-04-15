@@ -11,4 +11,5 @@ pack:
 	dotnet pack -o $(NUGET_LOCAL) Haumohio.EventSourcing/
 
 refresh_blob:
-	azcopy copy "./__devwork_backup/*" "http://127.0.0.1:10000/devstoreaccount1/proj-devwork-638730020346304188" --recursive --from-to LocalBlob
+# 	azcopy copy "./__devwork_backup/*" "http://127.0.0.1:10000/devstoreaccount1/proj-devwork-638730020346304188" --recursive --from-to LocalBlob
+# Didn't work.  Instead open the container in explorer and copy the files in manually
