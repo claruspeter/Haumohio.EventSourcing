@@ -49,6 +49,17 @@ module Projection =
           {this with version = 0}
         else
           this
+        |> fun x -> 
+          {x with
+            data =
+              this.data 
+              |> Seq.map (
+                  fun kv -> 
+                    (kv.Key, kv.Value |> autoClean)
+              )
+              |> dict
+              |> _.ToImmutableDictionary<'Key, 'Model>()
+          }
     interface IEmpty<State<'Key,'Model>> with 
       static member empty = State<'Key,'Model>.empty
 

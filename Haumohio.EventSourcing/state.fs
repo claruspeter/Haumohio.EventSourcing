@@ -20,6 +20,7 @@ module StateStorage =
   let loadStateForDay (domain: 'D) (day:DateOnly) (container: EventSourcingContainer) =
       let filename = sprintf "%s/%s/%s" (domain.ToString().ToLowerInvariant()) (typeof<'S>.Name) (day |> dateOnlyString)
       container.stateContainer.loadAs<State<'K, 'S>> filename
+      |> Option.map autoClean
 
   let rec makeStateForDay (empty: State<'K,'S>) (domain: 'D) (day:DateOnly) (projector: Projector<'K, 'S, 'E>) (container: EventSourcingContainer) =
     container.logger.LogDebug("Making state {Domain}.{StateName} for {Today}", domain, typeof<'S>.Name, day)

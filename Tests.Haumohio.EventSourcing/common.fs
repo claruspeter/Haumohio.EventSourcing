@@ -38,7 +38,7 @@ type TestProjection = {
   interface IAutoClean<TestProjection> with 
     member this.clean() = 
       {this with 
-        stuff = unNull [] this.stuff
+        stuff = if this.stuff = [] then [123] else this.stuff
       }
 
 type TestState = Projection.State<string, TestProjection>

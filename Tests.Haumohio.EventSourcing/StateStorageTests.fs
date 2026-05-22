@@ -9,12 +9,30 @@ open Haumohio.EventSourcing
 open Haumohio.EventSourcing.EventStorage
 open TestCommon
 open Haumohio.EventSourcing.Projection
+open Haumohio
+
+type MyLogger() =
+  let mutable _logs : string list = []
+
+  member this.Logs = _logs
+
+  interface ILogger with
+      member this.BeginScope(state: 'TState): IDisposable = 
+          this
+      member this.IsEnabled(logLevel: LogLevel): bool = 
+          true
+      member this.Log(logLevel: LogLevel, eventId: EventId, state: 'TState, ``exception``: exn, formatter: Func<'TState,exn,string>): unit = 
+          let s = formatter.Invoke (state, ``exception``) |> sprintf "%O: %s" logLevel
+          _logs <- _logs @ [s]
+  interface IDisposable with
+      member this.Dispose(): unit = 
+          ()
 
 
 let _now = fun () -> DateTime(2006, 6,5,4,3,2,1)
 let _today = _now() |> DateOnly.FromDateTime
 
-let _logger = LoggerFactory.Create(fun builder -> builder.AddConsole() |> ignore).CreateLogger("EventStorageTests")
+let _logger = new MyLogger()  //LoggerFactory.Create(fun builder -> builder.AddConsole() |> ignore).CreateLogger("EventStorageTests")
 let newStore() = Ephemeral.EphemeralStore _logger _now
 
 let setTime container at =
@@ -164,3 +182,41 @@ let ``State can be calculated using a given empty state`` () =
   let result = state.["42"].Value
   result.cnt |> should equal 11
   result.stuff |> should equal [1;2;3]
+
+[<Fact>]
+let ``State can re reloaded`` () = 
+  //Arrange
+  let store = newStore()
+  let container = {
+    eventContainer = store.container "events"
+    stateContainer = store.container "states"
+  }
+  let c2 = setTime container (_now().AddDays(-2))
+  let _ = storeEvent c2 TestDomain.Test1 "test_user" (Data 42)
+  let cToday = setTime c2 (_now())
+  let _ = StateStorage.makeState TestDomain.Test1 projector cToday  //builds the states
+  //Act
+  let state: State<string, TestProjection> option = StateStorage.loadStateForDay TestDomain.Test1 (_today.AddDays(-1)) container
+  //Assert
+  state.IsSome |> should equal true
+  state.Value.["42"].IsSome |> should equal true
+  state.Value.["42"].Value.id |> should equal "42"
+
+[<Fact>]
+let ``State is cleaned`` () = 
+  //Arrange
+  let store = newStore()
+  let container = {
+    eventContainer = store.container "events"
+    stateContainer = store.container "states"
+  }
+  let c2 = setTime container (_now().AddDays(-2))
+  let _ = storeEvent c2 TestDomain.Test1 "test_user" (Data 42)
+  let cToday = setTime c2 (_now())
+  let _ = StateStorage.makeState TestDomain.Test1 projector cToday  //builds the states
+  //Act
+  let state: State<string, TestProjection> option = StateStorage.loadStateForDay TestDomain.Test1 (_today.AddDays(-1)) container
+  //Assert
+  state.IsSome |> should equal true
+  state.Value.["42"].IsSome |> should equal true
+  state.Value.["42"].Value.stuff |> should equal [123]
