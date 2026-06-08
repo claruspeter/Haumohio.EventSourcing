@@ -42,7 +42,7 @@ module StateStorage =
           empty
       let state = projectForDay projector domain day initial container
       let filename = sprintf "%s/%s_v%d/%s" (domain.ToString().ToLowerInvariant()) (typeof<'S>.Name) version (day |> dateOnlyString)
-      let saved = container.stateContainer.save filename state
+      let saved = container.stateContainer.save filename {state with version = version}
       container.logger.LogInformation("State {Domain}.{StateName} v{Version} for {Day} saved", domain, (typeof<'S>.Name), version, day)
       state
 
