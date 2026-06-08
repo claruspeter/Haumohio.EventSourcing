@@ -42,6 +42,7 @@ type TestProjection = {
       }
 
 type TestState = Projection.State<string, TestProjection>
+let stateVersion = 1
 
 let projector (state: TestState) (ev: Event<TestEvents>) =
   match ev.details with 

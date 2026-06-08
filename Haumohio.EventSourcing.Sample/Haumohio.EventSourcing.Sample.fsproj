@@ -11,7 +11,7 @@
     <PackageReference Include="hashids.net" Version="1.7.0" />
     <PackageReference Include="Haumohio.graphql" Version="1.0.29" />
     <PackageReference Include="Haumohio.Storage" Version="2.0.20" />
-    <PackageReference Include="Haumohio.Storage.Blob" Version="2.0.19" />
+    <PackageReference Include="Haumohio.Storage.Blob" Version="2.0.21" />
     <PackageReference Include="Haumohio.Storage.Files" Version="2.0.31" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.1.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.3.0" />

@@ -91,9 +91,47 @@ let ``State is stored in the state container under it's own folder`` () =
   let _ = storeEvent cYesterday TestDomain.Test1 "test_user" (Data 42)
   let cToday = setTime cYesterday (_now())
   //Act
-  let _ = StateStorage.makeState TestDomain.Test1 projector cToday
+  let _ = StateStorage.makeState TestDomain.Test1 projector stateVersion cToday
   //Assert
-  cToday.stateContainer.list "test1" |> Seq.toList |> should equal ["test1/TestProjection/2006-06-04"]
+  cToday.stateContainer.list "test1" |> Seq.toList |> should equal ["test1/TestProjection_v1/2006-06-04"]
+
+
+[<Fact>]
+let ``State is stored in the state container in a versioned folder`` () = 
+  //Arrange
+  let store = newStore()
+  let container = {
+    eventContainer = store.container "events"
+    stateContainer = store.container "states"
+  }
+  let cYesterday = setTime container (_now().AddDays(-1))
+  let _ = storeEvent cYesterday TestDomain.Test1 "test_user" (Data 42)
+  let cToday = setTime cYesterday (_now())
+  //Act
+  let _ = StateStorage.makeState TestDomain.Test1 projector 2 cToday
+  //Assert
+  cToday.stateContainer.list "test1" |> Seq.toList |> should equal ["test1/TestProjection_v2/2006-06-04"]
+
+
+[<Fact>]
+let ``Incrementing the state version cause the state to be rebuilt`` () = 
+  //Arrange
+  let store = newStore()
+  let container = {
+    eventContainer = store.container "events"
+    stateContainer = store.container "states"
+  }
+  let cYesterday = setTime container (_now().AddDays(-1))
+  let _ = storeEvent cYesterday TestDomain.Test1 "test_user" (Data 42)
+  let cToday = setTime cYesterday (_now())
+  //Act 1
+  let _ = StateStorage.makeState TestDomain.Test1 projector 1 cToday
+  //Assert 1
+  cToday.stateContainer.list "test1" |> Seq.toList |> should equal ["test1/TestProjection_v1/2006-06-04"]
+  //Act 2
+  let _ = StateStorage.makeState TestDomain.Test1 projector 2 cToday
+  //Assert 2
+  cToday.stateContainer.list "test1" |> Seq.toList |> should equal ["test1/TestProjection_v1/2006-06-04"; "test1/TestProjection_v2/2006-06-04"]
 
 [<Fact>]
 let ``State is calculated but not stored for today`` () = 
@@ -105,7 +143,7 @@ let ``State is calculated but not stored for today`` () =
   }
   let _ = storeEvent container TestDomain.Test1 "test_user" (Data 42)
   //Act
-  let state = StateStorage.makeState TestDomain.Test1 projector container
+  let state = StateStorage.makeState TestDomain.Test1 projector stateVersion container
   //Assert
   container.stateContainer.list "test1" |> Seq.length |> should equal 0
   state.["42"].IsSome |> should equal true
@@ -124,21 +162,21 @@ let ``State is stored for each day leading up to today`` () =
   let _ = storeEvent c05 TestDomain.Test1 "test_user" (Data 42)
   let cToday = setTime c05 (_now())
   //Act
-  let _ = StateStorage.makeState TestDomain.Test1 projector cToday
+  let _ = StateStorage.makeState TestDomain.Test1 projector stateVersion cToday
   //Assert
   cToday.stateContainer.list "test1" 
   |> Seq.toList 
   |> should equal [
-    "test1/TestProjection/2006-05-26"
-    "test1/TestProjection/2006-05-27"
-    "test1/TestProjection/2006-05-28"
-    "test1/TestProjection/2006-05-29"
-    "test1/TestProjection/2006-05-30"
-    "test1/TestProjection/2006-05-31"
-    "test1/TestProjection/2006-06-01"
-    "test1/TestProjection/2006-06-02"
-    "test1/TestProjection/2006-06-03"
-    "test1/TestProjection/2006-06-04"
+    "test1/TestProjection_v1/2006-05-26"
+    "test1/TestProjection_v1/2006-05-27"
+    "test1/TestProjection_v1/2006-05-28"
+    "test1/TestProjection_v1/2006-05-29"
+    "test1/TestProjection_v1/2006-05-30"
+    "test1/TestProjection_v1/2006-05-31"
+    "test1/TestProjection_v1/2006-06-01"
+    "test1/TestProjection_v1/2006-06-02"
+    "test1/TestProjection_v1/2006-06-03"
+    "test1/TestProjection_v1/2006-06-04"
   ]
 
 [<Fact>]
@@ -155,7 +193,7 @@ let ``State is calculated for each day leading up to today`` () =
   let _ = storeEvent c05 TestDomain.Test1 "test_user" (Data 42)
   let cToday = setTime c05 (_now())
   //Act
-  let _ = StateStorage.makeState TestDomain.Test1 projector cToday
+  let _ = StateStorage.makeState TestDomain.Test1 projector stateVersion cToday
   //Assert
   cToday.stateContainer.list "test1" 
   |> Seq.toList
@@ -175,7 +213,7 @@ let ``State can be calculated using a given empty state`` () =
   let _ = storeEvent container TestDomain.Test1 "test_user" (Data 42)
   let initial = TestState.empty |> addOrAmend "42" (fun x -> {x with cnt=10; stuff=[1;2;3]})
   //Act
-  let state = StateStorage.makeStateWithEmpty initial TestDomain.Test1 projector container
+  let state = StateStorage.makeStateWithEmpty initial TestDomain.Test1 projector stateVersion container
   //Assert
   container.stateContainer.list "test1" |> Seq.length |> should equal 0
   state.["42"].IsSome |> should equal true
@@ -194,9 +232,9 @@ let ``State can re reloaded`` () =
   let c2 = setTime container (_now().AddDays(-2))
   let _ = storeEvent c2 TestDomain.Test1 "test_user" (Data 42)
   let cToday = setTime c2 (_now())
-  let _ = StateStorage.makeState TestDomain.Test1 projector cToday  //builds the states
+  let _ = StateStorage.makeState TestDomain.Test1 projector stateVersion cToday  //builds the states
   //Act
-  let state: State<string, TestProjection> option = StateStorage.loadStateForDay TestDomain.Test1 (_today.AddDays(-1)) container
+  let state: State<string, TestProjection> option = StateStorage.loadStateForDay TestDomain.Test1 (_today.AddDays(-1)) stateVersion container
   //Assert
   state.IsSome |> should equal true
   state.Value.["42"].IsSome |> should equal true
@@ -213,9 +251,9 @@ let ``State is cleaned`` () =
   let c2 = setTime container (_now().AddDays(-2))
   let _ = storeEvent c2 TestDomain.Test1 "test_user" (Data 42)
   let cToday = setTime c2 (_now())
-  let _ = StateStorage.makeState TestDomain.Test1 projector cToday  //builds the states
+  let _ = StateStorage.makeState TestDomain.Test1 projector stateVersion cToday  //builds the states
   //Act
-  let state: State<string, TestProjection> option = StateStorage.loadStateForDay TestDomain.Test1 (_today.AddDays(-1)) container
+  let state: State<string, TestProjection> option = StateStorage.loadStateForDay TestDomain.Test1 (_today.AddDays(-1)) stateVersion container
   //Assert
   state.IsSome |> should equal true
   state.Value.["42"].IsSome |> should equal true

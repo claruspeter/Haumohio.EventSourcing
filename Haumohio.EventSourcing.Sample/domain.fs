@@ -70,7 +70,7 @@ module Domain =
 
   let people clientId  =
     let c = clientId |> container 
-    StateStorage.makeState SampleDomains.People projector c
+    StateStorage.makeState SampleDomains.People projector 1 c
     |> fun x -> x.data.Values
 
   let addPerson clientId userName personalName familyName =
