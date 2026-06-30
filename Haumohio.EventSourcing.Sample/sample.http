@@ -1,5 +1,5 @@
 @url = http://localhost:7071/graphql
-@userToken = {{$processEnv JWT_API_KEY}}
+@userToken = {{$processEnv GOOGLE_KEY}}
 @apiToken = {{$processEnv JWT_API_KEY}}
 
 POST http://localhost:7071/graphql

@@ -1,6 +1,9 @@
 sample: test
 	cd Haumohio.EventSourcing.Sample; func start
 
+build:
+	dotnet build
+
 test:
 	cd Tests.Haumohio.EventSourcing; dotnet test -l "console;verbosity=normal"
 
