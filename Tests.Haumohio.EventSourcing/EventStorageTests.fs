@@ -49,3 +49,19 @@ let ``Events can be retrieved by day for a domain`` () =
   let events = EventStorage.list TestDomain.Test1 _today c3
   //Assert
   events |> should equal ["2007-06-05_04-03-02.001_Data"; "2007-06-05_05-03-02.001_Data"]
+
+[<Fact>]
+let ``Many events can be stored as a batch, with time incrementing by 1 ms per event`` () =
+  //Arrange
+  let store = newStore()
+  let container = store.container "TESTMANY" |> EventStore
+  let cYesterday = setTime container (_now().AddDays(-1).AddHours(-1))
+  let events = [1..100] |> List.map (fun i -> (Data i) )
+  //Act
+  let response = storeEvents cYesterday TestDomain.Test1 "test_user" events
+  //Assert
+  response.description |> should equal "DATA:1 - DATA:100"
+  let stored = container.eventContainer.list "test1"
+  stored |> Seq.toList |> should haveLength 100
+  let saved = EventStorage.list TestDomain.Test1 (_today.AddDays(-1)) container
+  saved |> should haveLength 100

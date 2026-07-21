@@ -60,7 +60,7 @@ printfn "==============================================\n"
 
 let logger = LoggerFactory.Create(fun x -> x.AddConsole() |> ignore).CreateLogger("up230")
 
-let store = Files.FileStore logger (Some "../__data__")
+let store = Files.FileStore logger Store.StandardUtcProvider (Some "../__data__")
 // let store = Blob.BlobStore logger None
 
 

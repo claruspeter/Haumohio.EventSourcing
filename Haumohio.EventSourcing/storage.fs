@@ -72,9 +72,22 @@ module EventStorage =
     |> fun x -> { at = x.at; by = x.by; action = evtName; domain=category; description = eventDetail.description}
 
   let storeEvents<'E, 'D when 'E:> IHasDescription and 'D: enum<int>> (c:EventSourcingContainer) (domain:'D) userName (eventDetail:'E seq) =
-    eventDetail
-    |> Seq.map (storeEvent c domain userName)
-    |> Seq.reduce ( fun acc i -> {acc with action = $"{acc.action}, {i.action}"; description = $"{acc.description},\r\n{i.description}" })
+    let category = domain.ToString().ToLowerInvariant()
+    let startTime = c.timeProvider()
+    let descriptions = 
+      eventDetail
+      |> Seq.mapi(
+        fun i detail ->
+          let event = { at = startTime.AddMilliseconds i; by = userName; details = detail }
+          let evtName = detail |> DUName
+          let filename = sprintf "%s/event/%s_%s" category (event.at |> datetimeString) evtName
+          c.eventContainer.save filename event |> ignore
+          detail.description
+      )
+    let first = descriptions |> Seq.head
+    let last = descriptions |> Seq.last
+    { at = startTime; by = userName; action = "Batch"; domain=category; description = $"{first} - {last}"}
+
 
   let list (domain: 'D) (day:DateOnly) (container: EventSourcingContainer) =
     let prefix = sprintf "%s/event/%s" (domain.ToString().ToLowerInvariant()) (dateOnlyString day) 
