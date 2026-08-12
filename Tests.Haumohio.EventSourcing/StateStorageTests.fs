@@ -258,3 +258,33 @@ let ``State is cleaned`` () =
   state.IsSome |> should equal true
   state.Value.["42"].IsSome |> should equal true
   state.Value.["42"].Value.stuff |> should equal [123]
+
+type MyGenType<'X> = {
+  key: string
+  value: 'X
+}with
+  interface IHasKey<string> with 
+    member this.Key = this.key
+  interface IEmpty<MyGenType<'X>> with 
+    static member empty = {key=""; value=Unchecked.defaultof<'X> }
+  interface IAutoClean<MyGenType<'X>> with 
+    member this.clean() = this
+
+let genProjector (state: Projection.State<string, MyGenType<int>>) (ev: Event<TestEvents>) =
+  match ev.details with 
+  | Data x -> addOrAmend (x.ToString()) (fun p -> {p with key=x.ToString(); value=x}) state
+  | _ -> state // do nothing 
+
+[<Fact>]
+let ``State item with generic parameters are stored without any generic reference``() =
+  let store = newStore()
+  let container = {
+    eventContainer = store.container "events"
+    stateContainer = store.container "states"
+  }
+  let cYesterday = setTime container (_now().AddDays(-1))
+  let _ = storeEvent cYesterday TestDomain.Test1 "test_user" (Data 42)
+  let state = StateStorage.makeState TestDomain.Test1 genProjector 1 container
+  let item = state.data.Values |> Seq.head
+  item.GetType().Name |> should equal "MyGenType`1"
+  container.stateContainer.list "test1" |> Seq.toList |> should equal ["test1/MyGenType_v1/2006-06-04"]
