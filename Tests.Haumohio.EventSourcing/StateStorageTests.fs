@@ -276,7 +276,13 @@ let genProjector (state: Projection.State<string, MyGenType<int>>) (ev: Event<Te
   | _ -> state // do nothing 
 
 [<Fact>]
-let ``State item with generic parameters are stored without any generic reference``() =
+let ``Type with generic arguments can be snake-cased``() =
+  StateStorage.simpleTypeName<MyGenType<int>> |> should equal "MyGenType-Int32"
+  StateStorage.simpleTypeName<MyGenType<TestDomain>> |> should equal "MyGenType-TestDomain"
+  StateStorage.simpleTypeName<MyGenType<MyGenType<int>>> |> should equal "MyGenType-MyGenType-Int32"
+
+[<Fact>]
+let ``State item with generic parameters are stored with snake-case generic parameters``() =
   let store = newStore()
   let container = {
     eventContainer = store.container "events"
@@ -287,4 +293,4 @@ let ``State item with generic parameters are stored without any generic referenc
   let state = StateStorage.makeState TestDomain.Test1 genProjector 1 container
   let item = state.data.Values |> Seq.head
   item.GetType().Name |> should equal "MyGenType`1"
-  container.stateContainer.list "test1" |> Seq.toList |> should equal ["test1/MyGenType_v1/2006-06-04"]
+  container.stateContainer.list "test1" |> Seq.toList |> should equal ["test1/MyGenType-Int32_v1/2006-06-04"]

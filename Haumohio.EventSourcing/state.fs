@@ -10,10 +10,21 @@ module StateStorage =
   open EventStorage
   open Projection
 
-  let simpleTypeName<'X> =
-    match typeof<'X>.Name with 
-    | x when x.Contains('`') -> x.Substring(0, x.IndexOf('`'))
-    | x -> x
+  let rec snakedTypeName (tp: Type) =
+    match tp with 
+    | t when t.IsGenericTypeDefinition -> t.Name.Remove(t.Name.IndexOf('`'))
+    | t when t.IsGenericType -> 
+      let names = 
+        [t.GetGenericTypeDefinition() |> snakedTypeName]
+        @ (
+          t.GetGenericArguments() 
+          |> Seq.map snakedTypeName
+          |> Seq.toList
+        )
+      String.Join('-', names)
+    | t -> t.Name
+
+  let simpleTypeName<'X> = typeof<'X> |> snakedTypeName
 
   let findInitialEventDate (domain: 'D) (container: EventSourcingContainer) =
     let folder = sprintf "%s/event/" (domain.ToString().ToLowerInvariant())
